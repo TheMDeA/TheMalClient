@@ -56,14 +56,6 @@ class SetupScreen extends ConsumerWidget {
                     const SizedBox(height: 12),
                     const _AccentGrid(),
                     const SizedBox(height: 28),
-                    _SectionLabel(
-                      label: 'Select a theme mode',
-                      tooltip:
-                          'Auto follows your system. Black is a pure-black AMOLED dark theme.',
-                    ),
-                    const SizedBox(height: 12),
-                    const _ThemeModePicker(),
-                    const SizedBox(height: 28),
                     const _FontTile(),
                     const SizedBox(height: 16),
                   ],
@@ -136,52 +128,40 @@ class _AccentGrid extends ConsumerWidget {
       crossAxisSpacing: 12,
       children: [
         for (final accent in AppAccent.values)
-          GestureDetector(
-            onTap: () => ref.read(accentProvider.notifier).set(accent),
-            child: Tooltip(
-              message: accent.label,
-              child: AspectRatio(
-                aspectRatio: 1,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: accent.primary(brightness),
-                    borderRadius: BorderRadius.circular(16),
-                    border: selected == accent
-                        ? Border.all(color: scheme.primary, width: 2)
+          Builder(builder: (context) {
+            final swatch = accent.primary(brightness);
+            final isSelected = selected == accent;
+            return GestureDetector(
+              onTap: () => ref.read(accentProvider.notifier).set(accent),
+              child: Tooltip(
+                message: accent.label,
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: swatch,
+                      borderRadius: BorderRadius.circular(16),
+                      border: isSelected
+                          ? Border.all(color: scheme.primary, width: 2)
+                          : null,
+                    ),
+                    // White checks vanish on the light pastel swatches
+                    // (lime, amber, honey in dark mode): pick the check
+                    // color from the swatch luminance instead.
+                    child: isSelected
+                        ? Icon(
+                            Icons.check,
+                            color: swatch.computeLuminance() > 0.5
+                                ? Colors.black87
+                                : Colors.white,
+                          )
                         : null,
                   ),
-                  child: selected == accent
-                      ? const Icon(Icons.check, color: Colors.white)
-                      : null,
                 ),
               ),
-            ),
-          ),
+            );
+          }),
       ],
-    );
-  }
-}
-
-class _ThemeModePicker extends ConsumerWidget {
-  const _ThemeModePicker();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final mode = ref.watch(themeModeProvider);
-
-    return SizedBox(
-      width: double.infinity,
-      child: SegmentedButton<AppThemeMode>(
-        segments: const [
-          ButtonSegment(value: AppThemeMode.auto, label: Text('auto')),
-          ButtonSegment(value: AppThemeMode.light, label: Text('light')),
-          ButtonSegment(value: AppThemeMode.dark, label: Text('dark')),
-          ButtonSegment(value: AppThemeMode.black, label: Text('black')),
-        ],
-        selected: {mode},
-        onSelectionChanged: (selected) =>
-            ref.read(themeModeProvider.notifier).set(selected.first),
-      ),
     );
   }
 }

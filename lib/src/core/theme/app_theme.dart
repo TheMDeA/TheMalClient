@@ -90,7 +90,10 @@ extension AppAccentX on AppAccent {
 
 ColorScheme _darkScheme(AppAccent accent, {bool amoled = false}) {
   final primary = accent.primary(Brightness.dark);
-  // AMOLED "black" mode: pure-black surfaces, accent colors untouched.
+  // Surfaces take a whisper of the accent color so the background matches
+  // the chosen theme instead of staying warm-brown for every accent.
+  // AMOLED black keeps pure-black surfaces: that's the point of the mode.
+  Color tint(Color base) => Color.lerp(base, primary, 0.08)!;
   const surface = Color(0xFF141110);
   const surfaceLowest = Color(0xFF0E0C0A);
   const surfaceLow = Color(0xFF1B1713);
@@ -111,13 +114,14 @@ ColorScheme _darkScheme(AppAccent accent, {bool amoled = false}) {
     tertiaryContainer: const Color(0xFF3C4634),
     onTertiaryContainer: const Color(0xFFDCE8CF),
     error: const Color(0xFFFFB4AB),
-    surface: amoled ? Colors.black : surface,
+    surface: amoled ? Colors.black : tint(surface),
     onSurface: const Color(0xFFEDE4DA),
-    surfaceContainerLowest: amoled ? Colors.black : surfaceLowest,
-    surfaceContainerLow: amoled ? const Color(0xFF0A0A0A) : surfaceLow,
-    surfaceContainer: amoled ? const Color(0xFF111111) : surfaceContainer,
-    surfaceContainerHigh: amoled ? const Color(0xFF181818) : surfaceHigh,
-    surfaceContainerHighest: amoled ? const Color(0xFF1F1F1F) : surfaceHighest,
+    surfaceContainerLowest: amoled ? Colors.black : tint(surfaceLowest),
+    surfaceContainerLow: amoled ? const Color(0xFF0A0A0A) : tint(surfaceLow),
+    surfaceContainer: amoled ? const Color(0xFF111111) : tint(surfaceContainer),
+    surfaceContainerHigh: amoled ? const Color(0xFF181818) : tint(surfaceHigh),
+    surfaceContainerHighest:
+        amoled ? const Color(0xFF1F1F1F) : tint(surfaceHighest),
     onSurfaceVariant: const Color(0xFFCBB9A6),
     outline: const Color(0xFF52453A),
     outlineVariant: const Color(0xFF3A3129),
@@ -126,6 +130,8 @@ ColorScheme _darkScheme(AppAccent accent, {bool amoled = false}) {
 
 ColorScheme _lightScheme(AppAccent accent) {
   final primary = accent.primary(Brightness.light);
+  // Same accent whisper as dark mode, so the background matches the theme.
+  Color tint(Color base) => Color.lerp(base, primary, 0.07)!;
   return ColorScheme.light(
     primary: primary,
     onPrimary: Colors.white,
@@ -139,17 +145,48 @@ ColorScheme _lightScheme(AppAccent accent) {
     onTertiary: Colors.white,
     tertiaryContainer: const Color(0xFFDCE8CF),
     onTertiaryContainer: const Color(0xFF25301F),
-    surface: const Color(0xFFFAF5EF),
+    surface: tint(const Color(0xFFFAF5EF)),
     onSurface: const Color(0xFF201A14),
-    surfaceContainerLowest: Colors.white,
-    surfaceContainerLow: const Color(0xFFF3EDE4),
-    surfaceContainer: const Color(0xFFEDE6DA),
-    surfaceContainerHigh: const Color(0xFFE7DFD2),
-    surfaceContainerHighest: const Color(0xFFE1D8C8),
+    surfaceContainerLowest: tint(Colors.white),
+    surfaceContainerLow: tint(const Color(0xFFF3EDE4)),
+    surfaceContainer: tint(const Color(0xFFEDE6DA)),
+    surfaceContainerHigh: tint(const Color(0xFFE7DFD2)),
+    surfaceContainerHighest: tint(const Color(0xFFE1D8C8)),
     onSurfaceVariant: const Color(0xFF5C4F42),
     outline: const Color(0xFF8A7A68),
     outlineVariant: const Color(0xFFD8CBB8),
   );
+}
+
+/// Semantic list-status colors, tuned per brightness from the accent
+/// family's own tones (jade/azure/honey/crimson/slate) so they sit well on
+/// the warm palette instead of using raw Material primaries.
+///
+/// [status] is a MAL list status like 'watching', 'completed', 'on_hold',
+/// 'dropped', 'plan_to_watch' (or the manga equivalents).
+Color statusColorFor(Brightness brightness, String status) {
+  final dark = brightness == Brightness.dark;
+  return switch (status) {
+    'watching' || 'reading' =>
+      dark ? const Color(0xFF7FE3A8) : const Color(0xFF1E7A44),
+    'completed' => dark ? const Color(0xFF8FD4FF) : const Color(0xFF1F6FB5),
+    'on_hold' => dark ? const Color(0xFFF0C063) : const Color(0xFF8A5E14),
+    'dropped' => dark ? const Color(0xFFFFA9B7) : const Color(0xFFB4234E),
+    _ => dark ? const Color(0xFFB8C4D4) : const Color(0xFF4A5A6E),
+  };
+}
+
+/// The app's background surface for an accent + brightness, using the same
+/// accent tint as the scheme. Used for surfaces outside the Material theme,
+/// like the system navigation bar.
+Color appSurface(AppAccent accent, Brightness brightness,
+    {bool amoled = false}) {
+  if (brightness == Brightness.dark && amoled) return Colors.black;
+  final primary = accent.primary(brightness);
+  final base = brightness == Brightness.dark
+      ? const Color(0xFF141110)
+      : const Color(0xFFFAF5EF);
+  return Color.lerp(base, primary, brightness == Brightness.dark ? 0.08 : 0.07)!;
 }
 
 /// Builds the app [ThemeData]: Material 3 with a custom warm [ColorScheme].

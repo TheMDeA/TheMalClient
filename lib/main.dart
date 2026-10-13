@@ -1,5 +1,6 @@
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:malclient/src/core/providers.dart';
@@ -73,6 +74,23 @@ class _MalClientAppState extends ConsumerState<MalClientApp> {
     // then applied to the whole text theme (null = system font).
     final fontFamily =
         fontKey == 'system' ? null : GoogleFonts.getFont(fontKey).fontFamily;
+
+    // Keep the system gesture bar in sync with the theme instead of the
+    // default black/white. The status bar is left to the AppBar.
+    final platformBrightness =
+        WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    final dark = themeMode.flutterMode == ThemeMode.dark ||
+        (themeMode.flutterMode == ThemeMode.system &&
+            platformBrightness == Brightness.dark);
+    final effectiveBrightness = dark ? Brightness.dark : Brightness.light;
+    SystemChrome.setSystemUIOverlayStyle(
+      SystemUiOverlayStyle(
+        systemNavigationBarColor: appSurface(accent, effectiveBrightness,
+            amoled: themeMode.amoled),
+        systemNavigationBarIconBrightness:
+            dark ? Brightness.light : Brightness.dark,
+      ),
+    );
 
     return MaterialApp.router(
       title: 'MyAL',
