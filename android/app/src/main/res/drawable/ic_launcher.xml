@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vector launcher icon: warm dark rounded square with tan "M".
+     Replaces the PNG mipmaps so the build needs no binary assets. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <path
+        android:fillColor="#201913"
+        android:pathData="M32,12 h44 a20,20 0 0 1 20,20 v44 a20,20 0 0 1 -20,20 h-44 a20,20 0 0 1 -20,-20 v-44 a20,20 0 0 1 20,-20 z" />
+
+    <path
+        android:strokeColor="#E8B48F"
+        android:strokeWidth="9"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M33,73 L33,39 L54,61 L75,39 L75,73" />
+
+</vector>
