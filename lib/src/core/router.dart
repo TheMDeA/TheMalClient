@@ -61,6 +61,15 @@ CustomTransitionPage<T> _fadeSlidePage<T>(
   );
 }
 
+/// Guards numeric `:id` path parameters: a malformed deep link (e.g.
+/// `/detail/anime/abc`) redirects home instead of throwing FormatException
+/// in the page builder.
+String? _redirectBadId(BuildContext context, GoRouterState state) {
+  return int.tryParse(state.pathParameters['id'] ?? '') == null
+      ? '/home'
+      : null;
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/login',
@@ -157,6 +166,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/detail/anime/:id',
+        redirect: _redirectBadId,
         pageBuilder: (context, state) => _fadeSlidePage(
           context,
           state,
@@ -168,6 +178,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/detail/manga/:id',
+        redirect: _redirectBadId,
         pageBuilder: (context, state) => _fadeSlidePage(
           context,
           state,
@@ -179,6 +190,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/detail/character/:id',
+        redirect: _redirectBadId,
         pageBuilder: (context, state) => _fadeSlidePage(
           context,
           state,
@@ -189,6 +201,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/detail/staff/:id',
+        redirect: _redirectBadId,
         pageBuilder: (context, state) => _fadeSlidePage(
           context,
           state,

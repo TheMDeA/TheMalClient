@@ -249,13 +249,10 @@ class TenraiRepository {
   /// currently-airing anime and merges the freshest items.
   Future<List<NewsItem>> homeNews() async {
     const ids = [52991, 21, 51009, 52034, 38000];
-    final all = <NewsItem>[];
-    for (final id in ids) {
-      final items = await animeNews(id, limit: 2);
-      all.addAll(items);
-      // Be polite: small delay between requests.
-      await Future<void>.delayed(const Duration(milliseconds: 400));
-    }
+    final results = await Future.wait([
+      for (final id in ids) animeNews(id, limit: 2),
+    ]);
+    final all = results.expand((e) => e).toList();
     if (all.isEmpty) return DemoData.news;
     return all.take(10).toList();
   }
@@ -277,13 +274,10 @@ class TenraiRepository {
       32281, // Your Name
       28977, // Gintama°
     ];
-    final all = <NewsItem>[];
-    for (final id in ids) {
-      final items = await animeNews(id, limit: 3);
-      all.addAll(items);
-      // Be polite: small delay between requests.
-      await Future<void>.delayed(const Duration(milliseconds: 400));
-    }
+    final results = await Future.wait([
+      for (final id in ids) animeNews(id, limit: 3),
+    ]);
+    final all = results.expand((e) => e).toList();
     if (all.isEmpty) return DemoData.news;
     // ISO dates: string comparison == chronological order.
     all.sort((a, b) => b.date.compareTo(a.date));

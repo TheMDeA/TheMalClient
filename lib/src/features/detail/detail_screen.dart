@@ -1,10 +1,15 @@
 import 'dart:async';
 
+import 'dart:io';
+import 'dart:ui' as ui;
+
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:palette_generator/palette_generator.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:malclient/src/core/providers.dart';
@@ -67,25 +72,65 @@ final _animeDetailProvider = FutureProvider.family<AnimeDetail, int>((ref, id) {
 
 /// Dominant poster color used to tint the detail banner scrim. Null when
 /// the poster is missing or the palette can't be extracted. Keyed by image
-/// URL so it survives rebuilds; the decoded image is shared with the
-/// banner's own [Image.network] through the image cache.
+/// URL so it never re-runs on rebuilds. Reads through the shared disk
+/// cache (populated by the banner's [CachedNetworkImage]) and does the
+/// decode + quantization on a background isolate, so opening a detail page
+/// never drops frames on the UI thread.
 final _posterTintProvider =
     FutureProvider.family<Color?, String>((ref, url) async {
   try {
-    final palette = await PaletteGenerator.fromImageProvider(
-      NetworkImage(url),
-      size: const Size(120, 180),
-      maximumColorCount: 8,
-    ).timeout(const Duration(seconds: 10));
-    final c = palette.dominantColor?.color;
-    if (c == null) return null;
-    // Deepen the color so the scrim stays rich, never neon.
-    final hsl = HSLColor.fromColor(c);
-    return hsl.withLightness((hsl.lightness * 0.6).clamp(0.15, 0.6)).toColor();
+    final file = await DefaultCacheManager()
+        .getSingleFile(url)
+        .timeout(const Duration(seconds: 10));
+    return await compute(_dominantColorOf, file.path);
   } catch (_) {
     return null;
   }
 });
+
+/// Background-isolate entry point: decodes a downscaled copy of the cached
+/// poster file and returns its deepened dominant color (or null).
+Future<Color?> _dominantColorOf(String path) async {
+  try {
+    final bytes = await File(path).readAsBytes();
+    final codec = await ui.instantiateImageCodec(bytes, targetWidth: 120);
+    final frame = await codec.getNextFrame();
+    final image = frame.image;
+    final byteData = await image.toByteData();
+    image.dispose();
+    if (byteData == null) return null;
+    // 6-bit-per-channel bucket histogram over rawRgba pixels.
+    final buckets = <int, int>{};
+    for (final p in byteData.buffer.asUint32List()) {
+      if ((p >> 24) & 0xFF < 128) continue; // skip transparent pixels
+      final key = (((p & 0xFF) >> 2) << 12) |
+          ((((p >> 8) & 0xFF) >> 2) << 6) |
+          (((p >> 16) & 0xFF) >> 2);
+      buckets[key] = (buckets[key] ?? 0) + 1;
+    }
+    if (buckets.isEmpty) return null;
+    var bestKey = 0;
+    var bestCount = 0;
+    buckets.forEach((key, count) {
+      if (count > bestCount) {
+        bestCount = count;
+        bestKey = key;
+      }
+    });
+    final hsl = HSLColor.fromColor(
+      Color.fromARGB(
+        255,
+        ((bestKey >> 12) & 0x3F) << 2,
+        ((bestKey >> 6) & 0x3F) << 2,
+        (bestKey & 0x3F) << 2,
+      ),
+    );
+    // Deepen the color so the scrim stays rich, never neon.
+    return hsl.withLightness((hsl.lightness * 0.6).clamp(0.15, 0.6)).toColor();
+  } catch (_) {
+    return null;
+  }
+}
 
 class _DetailBody extends ConsumerStatefulWidget {
   final AnimeDetail detail;
@@ -561,10 +606,13 @@ class _DetailHeader extends ConsumerWidget {
         );
     final img = url == null || url.isEmpty
         ? fallback()
-        : Image.network(
-            url,
+        // Disk-cached + decode-capped so the banner doesn't re-download or
+        // hold a full-res bitmap on every visit.
+        : CachedNetworkImage(
+            imageUrl: url,
             fit: BoxFit.cover,
-            errorBuilder: (_, _, _) => fallback(),
+            memCacheWidth: 1200,
+            errorWidget: (_, _, _) => fallback(),
           );
     // Keep the shared-element flight from the poster grids.
     return Hero(tag: 'poster-$kind-${d.id}', child: img);
@@ -1361,24 +1409,24 @@ class _MediaTab extends ConsumerWidget {
               onTap: () => _openViewer(context, urls, i),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  urls[i],
+                // Disk-cached + decode-capped: swiping a 20-picture gallery
+                // no longer re-downloads full-res photos every visit.
+                child: CachedNetworkImage(
+                  imageUrl: urls[i],
                   fit: BoxFit.cover,
-                  loadingBuilder: (ctx, child, progress) => progress == null
-                      ? child
-                      : Container(
-                          color: Theme.of(ctx)
-                              .colorScheme
-                              .surfaceContainerHighest,
-                          child: const Center(
-                            child: SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          ),
-                        ),
-                  errorBuilder: (_, _, _) => Container(
+                  memCacheWidth: 600,
+                  placeholder: (ctx, _) => Container(
+                    color:
+                        Theme.of(ctx).colorScheme.surfaceContainerHighest,
+                    child: const Center(
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  ),
+                  errorWidget: (_, _, _) => Container(
                     color:
                         Theme.of(context).colorScheme.surfaceContainerHighest,
                     child: const Icon(Icons.broken_image_outlined),
@@ -1470,10 +1518,12 @@ class _PictureViewerState extends State<_PictureViewer> {
             itemCount: widget.urls.length,
             itemBuilder: (_, i) => InteractiveViewer(
               child: Center(
-                child: Image.network(
-                  widget.urls[i],
+                // Disk-cached + decode-capped for fullscreen viewing.
+                child: CachedNetworkImage(
+                  imageUrl: widget.urls[i],
                   fit: BoxFit.contain,
-                  errorBuilder: (_, _, _) => const Icon(
+                  memCacheWidth: 1600,
+                  errorWidget: (_, _, _) => const Icon(
                     Icons.broken_image_outlined,
                     color: Colors.white54,
                     size: 48,

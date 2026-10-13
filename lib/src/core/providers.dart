@@ -374,17 +374,81 @@ final staffAnimeProvider = FutureProvider.family<List<StaffAnime>, int>((ref, id
   return ref.watch(tenraiRepositoryProvider).staffAnime(id);
 });
 
-/// My anime list, filtered by status (null = all).
-final myAnimeListProvider =
-    FutureProvider.family<List<AnimeListEntry>, String?>((ref, status) {
-  return ref.watch(listRepositoryProvider).animeList(status: status);
-});
+/// My anime list, fetched once (all statuses); the My List screen filters
+/// by status locally so chip taps never refetch from the server.
+/// Progress steppers patch entries optimistically via [stepProgress].
+class MyAnimeList extends AsyncNotifier<List<AnimeListEntry>> {
+  @override
+  Future<List<AnimeListEntry>> build() {
+    return ref.watch(listRepositoryProvider).animeList();
+  }
 
-/// My manga list, filtered by status (null = all).
+  /// Optimistically sets one entry's progress, persists in the background,
+  /// and rolls the cached list back if the request fails.
+  Future<bool> stepProgress(int id, int next) async {
+    final prev = state;
+    state = prev.whenData(
+      (items) => [
+        for (final item in items)
+          if (item.anime.id == id)
+            AnimeListEntry(
+              anime: item.anime,
+              listStatus: item.listStatus.copyWith(progress: next),
+            )
+          else
+            item,
+      ],
+    );
+    try {
+      await ref
+          .read(listRepositoryProvider)
+          .updateAnimeEntry(id, numWatchedEpisodes: next);
+      return true;
+    } catch (_) {
+      state = prev;
+      return false;
+    }
+  }
+}
+
+final myAnimeListProvider =
+    AsyncNotifierProvider<MyAnimeList, List<AnimeListEntry>>(MyAnimeList.new);
+
+/// My manga list — same shape as [MyAnimeList].
+class MyMangaList extends AsyncNotifier<List<MangaListEntry>> {
+  @override
+  Future<List<MangaListEntry>> build() {
+    return ref.watch(listRepositoryProvider).mangaList();
+  }
+
+  Future<bool> stepProgress(int id, int next) async {
+    final prev = state;
+    state = prev.whenData(
+      (items) => [
+        for (final item in items)
+          if (item.manga.id == id)
+            MangaListEntry(
+              manga: item.manga,
+              listStatus: item.listStatus.copyWith(progress: next),
+            )
+          else
+            item,
+      ],
+    );
+    try {
+      await ref
+          .read(listRepositoryProvider)
+          .updateMangaEntry(id, numReadChapters: next);
+      return true;
+    } catch (_) {
+      state = prev;
+      return false;
+    }
+  }
+}
+
 final myMangaListProvider =
-    FutureProvider.family<List<MangaListEntry>, String?>((ref, status) {
-  return ref.watch(listRepositoryProvider).mangaList(status: status);
-});
+    AsyncNotifierProvider<MyMangaList, List<MangaListEntry>>(MyMangaList.new);
 
 /// Refreshes both list providers after an edit.
 void invalidateMyLists(WidgetRef ref) {
