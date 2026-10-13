@@ -22,4 +22,4 @@ const malApiBase = 'https://api.myanimelist.net/v2';
 const jikanApiBase = 'https://api.jikan.moe/v4';
 
 bool get hasRealClientId =>
-    malClientId != 'YOUR_CLIENT_ID' && malClientId.trim().isNotEmpty;
+    malClientId != '3da8b7f2721431cd6adb3740d5c51d60' && malClientId.trim().isNotEmpty;
