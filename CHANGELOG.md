@@ -12,7 +12,6 @@ All notable changes to MALClient (Flutter rewrite) are documented here.
 - Fixed About dialog crediting Jikan instead of Tenrai
 - Settings → Storage now actually clears the cached posters (it showed a fake confirmation before)
 - Character/staff photos now fly into their detail pages (Hero transition)
-- Character/staff photos now fly into their detail pages (Hero transition)
 - Bottom-nav tabs fade in softly when switching
 - Detail bookmark button now shows the correct 'Edit list entry' state
 - About screen uses the kitsune logo and shows the real version
@@ -20,6 +19,7 @@ All notable changes to MALClient (Flutter rewrite) are documented here.
 - Schedule marks today's weekday and its countdowns tick every minute
 - Fixed the fullscreen picture viewer leaking memory on every open
 - Removed the duplicate About entry from Profile (About now lives only in Settings)
+- About → What's new now shows the real release notes from GitHub (cached 24h)
 
 ## [1.2.4] - 2026-10-13
 
