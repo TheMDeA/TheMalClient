@@ -65,6 +65,7 @@ class _CharacterBody extends StatelessWidget {
         _PersonHeader(
           imageUrl: d.imageUrl,
           name: d.name,
+          heroTag: 'character-${d.malId}',
           subtitle: d.nameKanji,
           facts: [
             if (d.nicknames.isNotEmpty) '“${d.nicknames.take(3).join('”, “')}”',
@@ -109,6 +110,7 @@ class _CharacterBody extends StatelessWidget {
                             child: PosterImage(
                               url: a.imageUrl,
                               title: a.title,
+                              heroTag: 'poster-anime-${a.malId}',
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
@@ -222,6 +224,7 @@ class _StaffBody extends StatelessWidget {
         _PersonHeader(
           imageUrl: d.imageUrl,
           name: d.name,
+          heroTag: 'staff-${d.malId}',
           subtitle: jpName.isNotEmpty ? jpName : null,
           facts: [
             if (d.birthday != null) 'Born ${d.birthday}',
@@ -268,6 +271,7 @@ class _StaffBody extends StatelessWidget {
                             child: PosterImage(
                               url: a.imageUrl,
                               title: a.title,
+                              heroTag: 'poster-anime-${a.malId}',
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
@@ -322,12 +326,14 @@ class _StaffBody extends StatelessWidget {
 class _PersonHeader extends StatelessWidget {
   final String? imageUrl;
   final String name;
+  final String? heroTag;
   final String? subtitle;
   final List<String> facts;
 
   const _PersonHeader({
     required this.imageUrl,
     required this.name,
+    this.heroTag,
     this.subtitle,
     this.facts = const [],
   });
@@ -344,6 +350,7 @@ class _PersonHeader extends StatelessWidget {
           child: PosterImage(
             url: imageUrl,
             title: name,
+            heroTag: heroTag,
             width: 120,
             height: 170,
             borderRadius: BorderRadius.circular(16),

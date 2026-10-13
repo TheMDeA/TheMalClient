@@ -14,14 +14,41 @@ class AppShell extends StatefulWidget {
   State<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends State<AppShell>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _tabFade;
+  late int _lastIndex;
+
   @override
   void initState() {
     super.initState();
+    _lastIndex = widget.shell.currentIndex;
+    _tabFade = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 180),
+      value: 1.0,
+    );
     // Silent daily update check after the first frame.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _autoCheckUpdate();
     });
+  }
+
+  @override
+  void didUpdateWidget(AppShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Soft fade-in on tab switch. The shell itself stays mounted so
+    // go_router keeps every tab's navigation stack intact.
+    if (widget.shell.currentIndex != _lastIndex) {
+      _lastIndex = widget.shell.currentIndex;
+      _tabFade.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _tabFade.dispose();
+    super.dispose();
   }
 
   Future<void> _autoCheckUpdate() async {
@@ -50,7 +77,10 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: widget.shell,
+      body: FadeTransition(
+        opacity: _tabFade,
+        child: widget.shell,
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: widget.shell.currentIndex,
         onDestinationSelected: (index) => widget.shell.goBranch(
