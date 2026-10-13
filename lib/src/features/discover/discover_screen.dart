@@ -6,6 +6,7 @@ import 'package:malclient/src/core/mal_genres.dart';
 import 'package:malclient/src/data/models/media.dart';
 import 'package:malclient/src/widgets/poster_card.dart';
 import 'package:malclient/src/widgets/section_widgets.dart';
+import 'package:malclient/src/widgets/skeleton.dart';
 
 /// Discover tab: M3 SearchBar, genre chips, and Top Anime / Top Manga /
 /// Seasonal grids. `?tab=top|manga|seasonal` and `?focusSearch=true` are
@@ -163,7 +164,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
                 ))
             .toList(),
       ),
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const SkeletonPosterGrid(),
       error: (e, _) => AsyncSection.error(
         error: e,
         onRetry: () => ref.invalidate(topAnimeProvider),
@@ -186,7 +187,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
                 ))
             .toList(),
       ),
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const SkeletonPosterGrid(),
       error: (e, _) => AsyncSection.error(
         error: e,
         onRetry: () => ref.invalidate(topMangaProvider),
@@ -292,7 +293,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
                 ))
             .toList(),
       ),
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const SkeletonPosterGrid(),
       error: (e, _) => Center(child: Text('Search failed: $e')),
     );
   }
@@ -317,7 +318,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
                 ))
             .toList(),
       ),
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const SkeletonPosterGrid(),
       error: (e, _) => Center(child: Text('Search failed: $e')),
     );
   }
