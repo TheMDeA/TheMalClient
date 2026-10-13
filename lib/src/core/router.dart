@@ -16,6 +16,12 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/login',
     redirect: (context, state) {
+      // The OAuth redirect (malclient://oauth?code=...) is captured and
+      // completed by the app_links listener in main.dart. Stop go_router
+      // from treating it as a navigation location first — no route matches
+      // a custom-scheme URI, and it would throw "no routes for location".
+      if (state.uri.scheme == 'malclient') return '/login';
+
       final authValue = ref.read(authControllerProvider);
       // While auth state is still loading, don't redirect anywhere.
       if (authValue.isLoading || authValue.hasError) return null;
