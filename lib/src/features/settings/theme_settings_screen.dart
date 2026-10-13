@@ -12,6 +12,8 @@ class ThemeSettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
     final accent = ref.watch(accentProvider);
+    final dynamicOn = ref.watch(dynamicColorProvider);
+    final dynamicAvailable = ref.watch(dynamicColorAvailableProvider);
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -55,16 +57,65 @@ class ThemeSettingsScreen extends ConsumerWidget {
                 .set(AppThemeMode.black),
           ),
           const Divider(),
+          _DynamicColorTile(
+            value: dynamicOn,
+            available: dynamicAvailable,
+            onChanged: (v) =>
+                ref.read(dynamicColorProvider.notifier).set(v),
+          ),
+          const Divider(),
           ListTile(
             leading: Icon(Icons.palette_outlined,
                 color: scheme.onSurfaceVariant),
             title: const Text('Theme setup'),
-            subtitle: Text('Accent color and font (${accent.label})'),
+            subtitle: Text(dynamicOn && dynamicAvailable
+                ? 'Accent color and font (dynamic colors on)'
+                : 'Accent color and font (${accent.label})'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/setup'),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Material You toggle: uses the system wallpaper colors (Android 12+)
+/// instead of the accent presets. Disabled when the device doesn't provide
+/// dynamic colors.
+class _DynamicColorTile extends StatelessWidget {
+  final bool value;
+  final bool available;
+  final ValueChanged<bool> onChanged;
+
+  const _DynamicColorTile({
+    required this.value,
+    required this.available,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final enabled =
+        available && Theme.of(context).platform == TargetPlatform.android;
+    return SwitchListTile(
+      secondary: Icon(
+        Icons.wallpaper_outlined,
+        color: scheme.onSurfaceVariant,
+      ),
+      title: const Text('Material You dynamic colors'),
+      subtitle: Text(
+        !available
+            ? 'Requires Android 12 or newer.'
+            : 'Use your wallpaper colors instead of an accent preset.',
+        style: textTheme.bodyMedium?.copyWith(
+          color: scheme.onSurfaceVariant,
+        ),
+      ),
+      value: value && enabled,
+      onChanged: enabled ? onChanged : null,
     );
   }
 }

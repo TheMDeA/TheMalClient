@@ -54,7 +54,7 @@ class SetupScreen extends ConsumerWidget {
                       tooltip: 'Accent color used for buttons and highlights.',
                     ),
                     const SizedBox(height: 12),
-                    const _AccentGrid(),
+                    const _DynamicAccentSection(),
                     const SizedBox(height: 28),
                     const _FontTile(),
                     const SizedBox(height: 16),
@@ -107,6 +107,44 @@ class _SectionLabel extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Accent section: the preset grid, or a note when Material You dynamic
+/// colors are active (the presets are ignored then).
+class _DynamicAccentSection extends ConsumerWidget {
+  const _DynamicAccentSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dynamicOn = ref.watch(dynamicColorProvider);
+    final dynamicAvailable = ref.watch(dynamicColorAvailableProvider);
+    final scheme = Theme.of(context).colorScheme;
+    final active = dynamicOn &&
+        dynamicAvailable &&
+        Theme.of(context).platform == TargetPlatform.android;
+    if (!active) return const _AccentGrid();
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.wallpaper_outlined, color: scheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Material You dynamic colors are on — your wallpaper colors are used instead of an accent preset. Turn it off in Theme Settings to pick a color.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
