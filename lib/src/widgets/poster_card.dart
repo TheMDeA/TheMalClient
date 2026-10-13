@@ -92,7 +92,6 @@ class ScoreBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (mean == null) return const SizedBox.shrink();
-    final scheme = Theme.of(context).colorScheme;
     final text =
         members != null ? '${mean!.toStringAsFixed(2)} | ${_compact(members!)}' : mean!.toStringAsFixed(2);
     return Container(
@@ -103,10 +102,11 @@ class ScoreBadge extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: TextStyle(
+        style: const TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,
-          color: scheme.onPrimary,
+          // Badge sits on a translucent black pill: always white text.
+          color: Colors.white,
         ),
       ),
     );

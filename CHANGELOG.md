@@ -2,6 +2,10 @@
 
 All notable changes to MALClient (Flutter rewrite) are documented here.
 
+## [1.2.6] - 2026-10-13
+
+- Fixed score badges on Discover posters being unreadable (dark text on dark background)
+
 ## [1.2.5] - 2026-10-13
 
 - New character pages: photo, about bio, favorites, and a tappable animeography grid
