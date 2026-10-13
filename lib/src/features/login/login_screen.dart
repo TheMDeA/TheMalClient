@@ -95,12 +95,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           SafeArea(
             child: _loginBody(scheme, textTheme),
           ),
-          if (auth.isLoading) ...[
-            const ModalBarrier(dismissible: false, color: Colors.black54),
-            const Center(child: CircularProgressIndicator()),
+            if (auth.isLoading) ...[
+              const ModalBarrier(dismissible: false, color: Colors.black54),
+              const Center(child: CircularProgressIndicator()),
+            ],
           ],
-        ],
-      ),
+        ),
     );
   }
 

@@ -1,6 +1,7 @@
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:malclient/src/core/providers.dart';
 import 'package:malclient/src/core/router.dart';
 import 'package:malclient/src/core/theme/app_theme.dart';
@@ -67,13 +68,19 @@ class _MalClientAppState extends ConsumerState<MalClientApp> {
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeProvider);
     final accent = ref.watch(accentProvider);
+    final fontKey = ref.watch(appFontProvider);
+    // Triggers the Google Fonts download on first use; the family name is
+    // then applied to the whole text theme (null = system font).
+    final fontFamily =
+        fontKey == 'system' ? null : GoogleFonts.getFont(fontKey).fontFamily;
 
     return MaterialApp.router(
       title: 'MALClient',
       debugShowCheckedModeBanner: false,
-      theme: buildAppTheme(Brightness.light, accent),
-      darkTheme: buildAppTheme(Brightness.dark, accent),
-      themeMode: themeMode,
+      theme: buildAppTheme(Brightness.light, accent, fontFamily: fontFamily),
+      darkTheme: buildAppTheme(Brightness.dark, accent,
+          amoled: themeMode.amoled, fontFamily: fontFamily),
+      themeMode: themeMode.flutterMode,
       routerConfig: router,
     );
   }

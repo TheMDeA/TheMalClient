@@ -140,32 +140,48 @@ final jikanRepositoryProvider = Provider<JikanRepository>(
 
 // ---------- theme ----------
 
-final themeModeProvider =
-    NotifierProvider<ThemeModeNotifier, ThemeMode>(ThemeModeNotifier.new);
+/// Theme mode options: auto (follow system), light, dark, and black
+/// (AMOLED pure-black dark).
+enum AppThemeMode { auto, light, dark, black }
 
-class ThemeModeNotifier extends Notifier<ThemeMode> {
+extension AppThemeModeX on AppThemeMode {
+  String get label => switch (this) {
+        AppThemeMode.auto => 'Auto',
+        AppThemeMode.light => 'Light',
+        AppThemeMode.dark => 'Dark',
+        AppThemeMode.black => 'Black',
+      };
+
+  ThemeMode get flutterMode => switch (this) {
+        AppThemeMode.light => ThemeMode.light,
+        AppThemeMode.dark || AppThemeMode.black => ThemeMode.dark,
+        AppThemeMode.auto => ThemeMode.system,
+      };
+
+  bool get amoled => this == AppThemeMode.black;
+}
+
+final themeModeProvider =
+    NotifierProvider<ThemeModeNotifier, AppThemeMode>(ThemeModeNotifier.new);
+
+class ThemeModeNotifier extends Notifier<AppThemeMode> {
   static const _key = 'theme_mode';
 
   @override
-  ThemeMode build() {
+  AppThemeMode build() {
+    // Migrates the old ThemeMode keys ('system' -> auto).
     final raw = ref.watch(sharedPrefsProvider).getString(_key);
     return switch (raw) {
-      'light' => ThemeMode.light,
-      'dark' => ThemeMode.dark,
-      _ => ThemeMode.system,
+      'light' => AppThemeMode.light,
+      'dark' => AppThemeMode.dark,
+      'black' => AppThemeMode.black,
+      _ => AppThemeMode.auto,
     };
   }
 
-  Future<void> set(ThemeMode mode) async {
+  Future<void> set(AppThemeMode mode) async {
     state = mode;
-    await ref.read(sharedPrefsProvider).setString(
-          _key,
-          switch (mode) {
-            ThemeMode.light => 'light',
-            ThemeMode.dark => 'dark',
-            ThemeMode.system => 'system',
-          },
-        );
+    await ref.read(sharedPrefsProvider).setString(_key, mode.name);
   }
 }
 
@@ -184,6 +200,26 @@ class AccentNotifier extends Notifier<AppAccent> {
   Future<void> set(AppAccent accent) async {
     state = accent;
     await ref.read(sharedPrefsProvider).setString(_key, accent.name);
+  }
+}
+
+/// App font: 'system' for the default, otherwise a Google Fonts family name.
+final appFontProvider =
+    NotifierProvider<AppFontNotifier, String>(AppFontNotifier.new);
+
+class AppFontNotifier extends Notifier<String> {
+  static const _key = 'app_font';
+
+  /// Fonts offered in the picker (Google Fonts family names).
+  static const options = ['Inter', 'Nunito', 'Poppins', 'Rubik', 'Lora'];
+
+  @override
+  String build() =>
+      ref.watch(sharedPrefsProvider).getString(_key) ?? 'system';
+
+  Future<void> set(String font) async {
+    state = font;
+    await ref.read(sharedPrefsProvider).setString(_key, font);
   }
 }
 

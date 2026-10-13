@@ -11,6 +11,7 @@ import 'package:malclient/src/features/mylist/mylist_screen.dart';
 import 'package:malclient/src/features/profile/profile_screen.dart';
 import 'package:malclient/src/features/schedule/schedule_screen.dart';
 import 'package:malclient/src/features/settings/settings_screen.dart';
+import 'package:malclient/src/features/setup/setup_screen.dart';
 import 'package:malclient/src/features/welcome/welcome_screen.dart';
 import 'package:malclient/src/widgets/app_shell.dart';
 
@@ -45,16 +46,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       final loc = state.matchedLocation;
       final onLogin = loc == '/login';
       final onWelcome = loc == '/welcome';
+      final onSetup = loc == '/setup';
 
       if (!loggedIn && !onLogin) return '/login';
-      // Fresh OAuth login lands on the welcome confirmation once;
-      // every other entry goes straight home.
+      // Fresh OAuth login lands on the welcome confirmation once, then the
+      // theme setup; every other entry goes straight home.
       if (loggedIn && onLogin) {
         return (auth?.freshLogin ?? false) ? '/welcome' : '/home';
       }
       if (onWelcome && (!loggedIn || !(auth?.freshLogin ?? false))) {
         return '/home';
       }
+      // Setup is part of onboarding (freshLogin) or reachable from Settings.
+      if (onSetup && !loggedIn) return '/login';
       return null;
     },
     routes: [
@@ -65,6 +69,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/welcome',
         builder: (context, state) => const WelcomeScreen(),
+      ),
+      GoRoute(
+        path: '/setup',
+        builder: (context, state) => const SetupScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => AppShell(shell: shell),

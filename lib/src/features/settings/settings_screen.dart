@@ -28,49 +28,43 @@ class SettingsScreen extends ConsumerWidget {
             child: Column(
               children: [
                 _ThemeTile(
-                  title: 'System default',
+                  title: 'Auto (system)',
                   icon: Icons.settings_suggest_outlined,
-                  selected: themeMode == ThemeMode.system,
+                  selected: themeMode == AppThemeMode.auto,
                   onTap: () =>
-                      ref.read(themeModeProvider.notifier).set(ThemeMode.system),
-                ),
-                _ThemeTile(
-                  title: 'Dark',
-                  icon: Icons.dark_mode_outlined,
-                  selected: themeMode == ThemeMode.dark,
-                  onTap: () =>
-                      ref.read(themeModeProvider.notifier).set(ThemeMode.dark),
+                      ref.read(themeModeProvider.notifier).set(AppThemeMode.auto),
                 ),
                 _ThemeTile(
                   title: 'Light',
                   icon: Icons.light_mode_outlined,
-                  selected: themeMode == ThemeMode.light,
+                  selected: themeMode == AppThemeMode.light,
                   onTap: () =>
-                      ref.read(themeModeProvider.notifier).set(ThemeMode.light),
+                      ref.read(themeModeProvider.notifier).set(AppThemeMode.light),
+                ),
+                _ThemeTile(
+                  title: 'Dark',
+                  icon: Icons.dark_mode_outlined,
+                  selected: themeMode == AppThemeMode.dark,
+                  onTap: () =>
+                      ref.read(themeModeProvider.notifier).set(AppThemeMode.dark),
+                ),
+                _ThemeTile(
+                  title: 'Black (AMOLED)',
+                  icon: Icons.contrast_outlined,
+                  selected: themeMode == AppThemeMode.black,
+                  onTap: () =>
+                      ref.read(themeModeProvider.notifier).set(AppThemeMode.black),
+                ),
+                ListTile(
+                  leading: Icon(Icons.palette_outlined,
+                      color: scheme.onSurfaceVariant),
+                  title: const Text('Theme setup'),
+                  subtitle: Text(
+                      'Colors, background image, font (${accent.label})'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.go('/setup'),
                 ),
               ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text('Accent color',
-              style:
-                  textTheme.titleSmall?.copyWith(color: scheme.primary)),
-          const SizedBox(height: 8),
-          Card.filled(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  for (final a in AppAccent.values)
-                    _AccentDot(
-                      accent: a,
-                      selected: accent == a,
-                      onTap: () =>
-                          ref.read(accentProvider.notifier).set(a),
-                    ),
-                ],
-              ),
             ),
           ),
           const SizedBox(height: 20),
@@ -154,49 +148,3 @@ class _ThemeTile extends StatelessWidget {
   }
 }
 
-class _AccentDot extends StatelessWidget {
-  final AppAccent accent;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _AccentDot({
-    required this.accent,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final brightness = Theme.of(context).brightness;
-    final color = accent.primary(brightness);
-    final scheme = Theme.of(context).colorScheme;
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color,
-              border: selected
-                  ? Border.all(color: scheme.onSurface, width: 3)
-                  : null,
-            ),
-            child: selected
-                ? Icon(Icons.check,
-                    color: accent.primary(brightness) == Colors.white
-                        ? Colors.black
-                        : scheme.onPrimary)
-                : null,
-          ),
-          const SizedBox(height: 6),
-          Text(accent.label,
-              style: Theme.of(context).textTheme.labelSmall),
-        ],
-      ),
-    );
-  }
-}
