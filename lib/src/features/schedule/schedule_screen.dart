@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -37,11 +39,22 @@ class ScheduleScreen extends ConsumerStatefulWidget {
 
 class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
   late String _day;
+  Timer? _ticker;
 
   @override
   void initState() {
     super.initState();
     _day = _weekdays[DateTime.now().weekday - 1];
+    // Keep the "Ep X in ..." countdowns fresh without refetching.
+    _ticker = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
   }
 
   @override
@@ -63,7 +76,7 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
               ),
             ),
             SizedBox(
-              height: 52,
+              height: 60,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -72,11 +85,29 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
                 itemBuilder: (_, i) {
                   final d = _weekdays[i];
                   final selected = d == _day;
+                  final isToday =
+                      d == _weekdays[DateTime.now().weekday - 1];
                   return Center(
-                    child: ChoiceChip(
-                      label: Text(_shortDay(d)),
-                      selected: selected,
-                      onSelected: (_) => setState(() => _day = d),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ChoiceChip(
+                          label: Text(_shortDay(d)),
+                          selected: selected,
+                          onSelected: (_) => setState(() => _day = d),
+                        ),
+                        const SizedBox(height: 3),
+                        Container(
+                          width: 4,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isToday
+                                ? Theme.of(context).colorScheme.primary
+                                : Colors.transparent,
+                          ),
+                        ),
+                      ],
                     ),
                   );
                 },

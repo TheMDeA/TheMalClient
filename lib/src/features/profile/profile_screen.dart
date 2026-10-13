@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:malclient/src/core/providers.dart';
+import 'package:malclient/src/core/services/update_service.dart';
 import 'package:malclient/src/data/models/media.dart';
 
 /// Profile tab: avatar header, anime/manga stats, menu to settings/logout.
@@ -19,9 +20,16 @@ class ProfileScreen extends ConsumerWidget {
         child: auth.when(
           data: (state) {
             final user = state.user;
-            return ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
+            return RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(authControllerProvider);
+                try {
+                  await ref.read(authControllerProvider.future);
+                } catch (_) {}
+              },
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
                 _header(context, state, scheme, textTheme),
                 const SizedBox(height: 20),
                 if (user != null) ...[
@@ -51,18 +59,22 @@ class ProfileScreen extends ConsumerWidget {
                 _MenuTile(
                   icon: Icons.info_outline,
                   title: 'About MyAL',
-                  onTap: () => showAboutDialog(
-                    context: context,
-                    applicationName: 'MyAL',
-                    applicationVersion: '1.0.0 (Flutter rewrite)',
-                    children: const [
-                      Text(
-                        'A from-scratch Flutter rewrite of MyAL '
-                        'MyAnimeList app. Data by MyAnimeList; reviews and '
-                        'news by Tenrai.',
-                      ),
-                    ],
-                  ),
+                  onTap: () async {
+                    final version = await installedVersion();
+                    if (!context.mounted) return;
+                    showAboutDialog(
+                      context: context,
+                      applicationName: 'MyAL',
+                      applicationVersion: '$version (Flutter rewrite)',
+                      children: const [
+                        Text(
+                          'A from-scratch Flutter rewrite of MyAL '
+                          'MyAnimeList app. Data by MyAnimeList; reviews and '
+                          'news by Tenrai.',
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 _MenuTile(
                   icon: Icons.logout,
@@ -75,6 +87,7 @@ class ProfileScreen extends ConsumerWidget {
                   },
                 ),
               ],
+            ),
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),
