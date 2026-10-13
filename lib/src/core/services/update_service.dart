@@ -303,7 +303,7 @@ Future<void> installApk(File file) async {
   } on PlatformException catch (e) {
     if (e.code == 'UNKNOWN_SOURCES') {
       throw StateError(
-          'Allow "Install unknown apps" for MALClient in system settings, then try again.');
+          'Allow "Install unknown apps" for MyAL in system settings, then try again.');
     }
     rethrow;
   }

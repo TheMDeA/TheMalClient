@@ -50,14 +50,14 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 _MenuTile(
                   icon: Icons.info_outline,
-                  title: 'About MALClient',
+                  title: 'About MyAL',
                   onTap: () => showAboutDialog(
                     context: context,
-                    applicationName: 'MALClient',
+                    applicationName: 'MyAL',
                     applicationVersion: '1.0.0 (Flutter rewrite)',
                     children: const [
                       Text(
-                        'A from-scratch Flutter rewrite of the MALClient '
+                        'A from-scratch Flutter rewrite of MyAL '
                         'MyAnimeList app. Data by MyAnimeList; reviews and '
                         'news by Jikan.',
                       ),

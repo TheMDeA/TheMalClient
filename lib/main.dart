@@ -75,7 +75,7 @@ class _MalClientAppState extends ConsumerState<MalClientApp> {
         fontKey == 'system' ? null : GoogleFonts.getFont(fontKey).fontFamily;
 
     return MaterialApp.router(
-      title: 'MALClient',
+      title: 'MyAL',
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(Brightness.light, accent, fontFamily: fontFamily),
       darkTheme: buildAppTheme(Brightness.dark, accent,

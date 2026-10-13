@@ -157,7 +157,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: 24),
               Text(
-                'MALClient',
+                'MyAL',
                 style: textTheme.displaySmall
                     ?.copyWith(fontWeight: FontWeight.bold),
               ),
