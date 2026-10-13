@@ -2,6 +2,17 @@
 
 All notable changes to MALClient (Flutter rewrite) are documented here.
 
+## [1.2.8] - 2026-10-14
+
+- Performance batch: News screen loads ~5x faster (parallel requests instead of 12 sequential with delays)
+- My List no longer runs a timer per row — one shared ticker, countdowns now minute-precision
+- Search waits until you stop typing (400ms debounce) and only queries the visible Anime/Manga tab
+- My List status chips filter instantly (list fetched once, filtered locally)
+- Episode/chapter stepper updates instantly with no reload flash, rolls back if the update fails
+- Malformed deep links redirect home instead of crashing
+- Detail gallery, fullscreen viewer, and banner now use the disk image cache (less data, less memory)
+- Poster color extraction moved off the UI thread
+
 ## [1.2.7] - 2026-10-14
 
 - Detail banner now glows with the poster's dominant color

@@ -1,4 +1,14 @@
-# MyAL v1.2.7
+# MyAL v1.2.8
+
+- Performance batch: News screen loads ~5x faster (parallel requests)
+- My List: one shared ticker instead of a timer per row, minute-precision countdowns
+- Search: 400ms debounce, queries only the visible tab
+- My List status chips filter instantly, no refetch
+- Episode/chapter stepper updates instantly with no reload flash
+- Malformed deep links redirect home instead of crashing
+- Detail gallery/viewer/banner use the disk image cache
+- Poster color extraction moved off the UI thread
+
 
 - Detail banner now glows with the poster's dominant color
 - Detail pages have a full-width banner header again (poster cover with title overlay), keeping all info: score, rank, popularity, episodes, format, aired date, studios, members
