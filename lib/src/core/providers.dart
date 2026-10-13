@@ -343,6 +343,12 @@ final mangaCharactersProvider =
   return ref.watch(tenraiRepositoryProvider).mangaCharacters(id);
 });
 
+/// Pictures for an anime (Tenrai).
+final animePicturesProvider =
+    FutureProvider.family<List<String>, int>((ref, id) {
+  return ref.watch(tenraiRepositoryProvider).animePictures(id);
+});
+
 /// My anime list, filtered by status (null = all).
 final myAnimeListProvider =
     FutureProvider.family<List<AnimeListEntry>, String?>((ref, status) {

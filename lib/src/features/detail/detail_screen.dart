@@ -3,10 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:malclient/src/core/providers.dart';
 import 'package:malclient/src/data/models/media.dart';
 import 'package:malclient/src/features/mylist/mylist_screen.dart';
 import 'package:malclient/src/widgets/poster_card.dart';
+import 'package:malclient/src/widgets/entrance.dart';
 
 /// Title detail screen: banner header, score row, countdown chip,
 /// M3 TabBar (Synopsis | Media | Related | Reviews), add-to-list FAB.
@@ -124,11 +127,24 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
           IconButton(
             icon: const Icon(Icons.more_vert),
             tooltip: 'More',
-            onPressed: () => _showMoreSheet(context, d),
+            onPressed: () => _showMoreSheet(context, d, _isAnime),
           ),
         ],
       ),
-      body: NestedScrollView(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          final id = widget.detail.id;
+          ref.invalidate(_animeDetailProvider(id));
+          ref.invalidate(animeCharactersProvider(id));
+          ref.invalidate(animePicturesProvider(id));
+          ref.invalidate(animeStatisticsProvider(id));
+          ref.invalidate(_reviewsProvider(id));
+          if (_isAnime) ref.invalidate(animeStaffProvider(id));
+          try {
+            await ref.read(_animeDetailProvider(id).future);
+          } catch (_) {}
+        },
+        child: NestedScrollView(
         controller: _outerScroll,
         headerSliverBuilder: (context, innerScrolled) => [
           // Auto-sizes to its content: no hardcoded height, so the
@@ -172,6 +188,7 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
             _MoreInfoTab(detail: d, isAnime: _isAnime),
           ],
         ),
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditSheet(context),
@@ -201,7 +218,8 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
     );
   }
 
-  void _showMoreSheet(BuildContext context, AnimeDetail d) {
+  void _showMoreSheet(BuildContext context, AnimeDetail d, bool isAnime) {
+    final malPath = isAnime ? 'anime' : 'manga';
     showModalBottomSheet(
       context: context,
       builder: (ctx) => SafeArea(
@@ -213,7 +231,10 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
               title: const Text('Open in MyAnimeList'),
               onTap: () {
                 Navigator.pop(ctx);
-                // TODO: launch MAL page
+                launchUrl(
+                  Uri.parse('https://myanimelist.net/$malPath/${d.id}'),
+                  mode: LaunchMode.externalApplication,
+                );
               },
             ),
             ListTile(
@@ -221,7 +242,12 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
               title: const Text('Share'),
               onTap: () {
                 Navigator.pop(ctx);
-                // TODO: share
+                SharePlus.instance.share(
+                  ShareParams(
+                    text:
+                        '${d.title}\nhttps://myanimelist.net/$malPath/${d.id}',
+                  ),
+                );
               },
             ),
           ],
@@ -1151,33 +1177,123 @@ class _StaffTab extends ConsumerWidget {
   }
 }
 
-class _MediaTab extends StatelessWidget {
+class _MediaTab extends ConsumerWidget {
   final AnimeDetail detail;
 
   const _MediaTab({required this.detail});
 
   @override
-  Widget build(BuildContext context) {
-    // v1: key art + facts. Full gallery/pv support can follow.
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Center(
-          child: PosterImage(
-            url: detail.imageUrl,
-            title: detail.title,
-            width: 200,
-            height: 284,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pictures = ref.watch(animePicturesProvider(detail.id));
+    return pictures.when(
+      data: (urls) {
+        if (urls.isEmpty) {
+          return const Center(child: Text('No pictures available.'));
+        }
+        return GridView.builder(
+          padding: const EdgeInsets.all(12),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 0.7,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+          ),
+          itemCount: urls.length,
+          itemBuilder: (_, i) => Entrance(
+            index: i,
+            child: GestureDetector(
+              onTap: () => _openViewer(context, urls, i),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  urls[i],
+                  fit: BoxFit.cover,
+                  loadingBuilder: (ctx, child, progress) => progress == null
+                      ? child
+                      : Container(
+                          color: Theme.of(ctx)
+                              .colorScheme
+                              .surfaceContainerHighest,
+                          child: const Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        ),
+                  errorBuilder: (_, _, _) => Container(
+                    color:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
+                    child: const Icon(Icons.broken_image_outlined),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+      loading: () => GridView.builder(
+        padding: const EdgeInsets.all(12),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 0.7,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+        ),
+        itemCount: 6,
+        itemBuilder: (_, _) => Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
-        const SizedBox(height: 16),
-        Text(
-          'Pictures and videos are coming to this tab in a later update.',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodySmall
-              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+      ),
+      error: (e, _) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off_outlined, size: 32),
+            const SizedBox(height: 8),
+            const Text('Could not load pictures.'),
+            TextButton(
+              onPressed: () =>
+                  ref.invalidate(animePicturesProvider(detail.id)),
+              child: const Text('Retry'),
+            ),
+          ],
         ),
-      ],
+      ),
+    );
+  }
+
+  void _openViewer(BuildContext context, List<String> urls, int index) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: Stack(
+          children: [
+            PageView.builder(
+              controller: PageController(initialPage: index),
+              itemCount: urls.length,
+              itemBuilder: (_, i) => InteractiveViewer(
+                child: Center(
+                  child: Image.network(urls[i], fit: BoxFit.contain),
+                ),
+              ),
+            ),
+            Positioned(
+              top: MediaQuery.of(ctx).padding.top + 8,
+              right: 8,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () => Navigator.pop(ctx),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

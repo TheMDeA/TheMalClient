@@ -137,9 +137,10 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
     return TabBarView(
       controller: _tabs,
       children: [
-        _grid(ref.watch(topAnimeProvider), ListKind.anime),
-        _mangaGrid(ref.watch(topMangaProvider)),
-        _grid(ref.watch(seasonalAnimeProvider), ListKind.anime),
+        _grid(ref.watch(topAnimeProvider), ListKind.anime, topAnimeProvider),
+        _mangaGrid(ref.watch(topMangaProvider), topMangaProvider),
+        _grid(ref.watch(seasonalAnimeProvider), ListKind.anime,
+            seasonalAnimeProvider),
       ],
     );
   }
@@ -149,22 +150,31 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
     return items.where((a) => a.genres.contains(_genre)).toList();
   }
 
-  Widget _grid(AsyncValue<List<AnimeSummary>> value, ListKind kind) {
+  Widget _grid(AsyncValue<List<AnimeSummary>> value, ListKind kind,
+      FutureProvider<List<AnimeSummary>> provider) {
     return value.when(
-      data: (items) => _posterGrid(
-        _applyGenre(items)
-            .map(
-              (a) => PosterCard(
-                imageUrl: a.imageUrl,
-                title: a.title,
-                mean: a.mean,
-                members: a.numListUsers,
-                rank: a.rank,
-                width: double.infinity,
-                onTap: () => context.push('/detail/anime/${a.id}'),
-              ),
-            )
-            .toList(),
+      data: (items) => RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(provider);
+          try {
+            await ref.read(provider.future);
+          } catch (_) {}
+        },
+        child: _posterGrid(
+          _applyGenre(items)
+              .map(
+                (a) => PosterCard(
+                  imageUrl: a.imageUrl,
+                  title: a.title,
+                  mean: a.mean,
+                  members: a.numListUsers,
+                  rank: a.rank,
+                  width: double.infinity,
+                  onTap: () => context.push('/detail/anime/${a.id}'),
+                ),
+              )
+              .toList(),
+        ),
       ),
       loading: () => const SkeletonPosterGrid(),
       error: (e, _) => AsyncSection.error(
@@ -174,22 +184,31 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
     );
   }
 
-  Widget _mangaGrid(AsyncValue<List<MangaSummary>> value) {
+  Widget _mangaGrid(AsyncValue<List<MangaSummary>> value,
+      FutureProvider<List<MangaSummary>> provider) {
     return value.when(
-      data: (items) => _posterGrid(
-        items
-            .map(
-              (m) => PosterCard(
-                imageUrl: m.imageUrl,
-                title: m.title,
-                mean: m.mean,
-                members: m.numListUsers,
-                rank: m.rank,
-                width: double.infinity,
-                onTap: () => context.push('/detail/manga/${m.id}'),
-              ),
-            )
-            .toList(),
+      data: (items) => RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(provider);
+          try {
+            await ref.read(provider.future);
+          } catch (_) {}
+        },
+        child: _posterGrid(
+          items
+              .map(
+                (m) => PosterCard(
+                  imageUrl: m.imageUrl,
+                  title: m.title,
+                  mean: m.mean,
+                  members: m.numListUsers,
+                  rank: m.rank,
+                  width: double.infinity,
+                  onTap: () => context.push('/detail/manga/${m.id}'),
+                ),
+              )
+              .toList(),
+        ),
       ),
       loading: () => const SkeletonPosterGrid(),
       error: (e, _) => AsyncSection.error(

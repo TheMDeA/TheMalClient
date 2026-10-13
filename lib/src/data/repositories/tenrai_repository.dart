@@ -148,10 +148,27 @@ class TenraiRepository {
     }
   }
 
+  /// Picture URLs (large) for an anime (`/anime/{id}/pictures`).
+  /// Returns empty on network/API errors.
+  Future<List<String>> animePictures(int malId) async {
+    try {
+      final res = await _get('/anime/$malId/pictures');
+      final data = (res.data as Map<String, dynamic>)['data'];
+      if (data is! List) return const [];
+      return [
+        for (final e in data)
+          if (e is Map<String, dynamic>)
+            (e['jpg'] as Map?)?['large_image_url'] as String? ??
+                (e['jpg'] as Map?)?['image_url'] as String?,
+      ].whereType<String>().toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
   /// Characters for a manga (`/manga/{id}/characters`).
   /// Throws on network/API errors so the UI can show the error state.
-  Future<List<AnimeCharacter>> mangaCharacters(int malId) async {
-    final res = await _get('/manga/$malId/characters');
+  Future<List<AnimeCharacter>> mangaCharacters(int malId) async {    final res = await _get('/manga/$malId/characters');
     final data = (res.data as Map<String, dynamic>)['data'];
     if (data is! List) return const [];
     return [

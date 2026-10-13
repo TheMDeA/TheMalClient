@@ -97,12 +97,20 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
                       ),
                     );
                   }
-                  return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                    itemCount: dayItems.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 12),
-                    itemBuilder: (_, i) =>
-                        _ScheduleCard(anime: dayItems[i]),
+                  return RefreshIndicator(
+                    onRefresh: () async {
+                      ref.invalidate(seasonalAnimeProvider);
+                      try {
+                        await ref.read(seasonalAnimeProvider.future);
+                      } catch (_) {}
+                    },
+                    child: ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                      itemCount: dayItems.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 12),
+                      itemBuilder: (_, i) =>
+                          _ScheduleCard(anime: dayItems[i]),
+                    ),
                   );
                 },
                 loading: () =>
