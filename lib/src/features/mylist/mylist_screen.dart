@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:malclient/src/core/providers.dart';
@@ -9,6 +10,7 @@ import 'package:malclient/src/features/mylist/filter_sheet.dart';
 import 'package:malclient/src/features/mylist/list_filter.dart';
 import 'package:malclient/src/widgets/poster_card.dart';
 import 'package:malclient/src/widgets/section_widgets.dart';
+import 'package:malclient/src/widgets/skeleton.dart';
 
 /// My List tab: Anime | Manga segmented control, status filter chips,
 /// rows with progress steppers and an edit bottom sheet.
@@ -22,6 +24,14 @@ class MyListScreen extends ConsumerStatefulWidget {
 class _MyListScreenState extends ConsumerState<MyListScreen> {
   ListKind _kind = ListKind.anime;
   String? _status; // null = all
+  String _searchQuery = '';
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   List<String> get _statuses => _kind == ListKind.anime
       ? AnimeListStatuses.all
@@ -34,6 +44,12 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
   List<AnimeListEntry> _applyAnimeFilterSort(
       List<AnimeListEntry> items, ListFilterState f) {
     var out = items;
+    if (_searchQuery.isNotEmpty) {
+      out = out
+          .where((e) =>
+              e.anime.title.toLowerCase().contains(_searchQuery))
+          .toList();
+    }
     if (f.animeTypes.isNotEmpty) {
       out = out
           .where((e) => f.animeTypes.contains(e.anime.mediaType))
@@ -97,6 +113,12 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
   List<MangaListEntry> _applyMangaFilterSort(
       List<MangaListEntry> items, ListFilterState f) {
     var out = items;
+    if (_searchQuery.isNotEmpty) {
+      out = out
+          .where((e) =>
+              e.manga.title.toLowerCase().contains(_searchQuery))
+          .toList();
+    }
     if (f.mangaTypes.isNotEmpty) {
       out = out
           .where((e) => f.mangaTypes.contains(e.manga.mediaType))
@@ -194,6 +216,34 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
               ),
             ),
             Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search your list…',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _searchQuery.isEmpty
+                      ? null
+                      : IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                          },
+                        ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  contentPadding:
+                      const EdgeInsets.symmetric(vertical: 8),
+                  isDense: true,
+                ),
+                onChanged: (v) =>
+                    setState(() => _searchQuery = v.trim().toLowerCase()),
+              ),
+            ),
+            Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: SegmentedButton<ListKind>(
                 segments: const [
@@ -209,10 +259,13 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
                   ),
                 ],
                 selected: {_kind},
-                onSelectionChanged: (s) => setState(() {
-                  _kind = s.first;
-                  _status = null;
-                }),
+                onSelectionChanged: (s) {
+                  HapticFeedback.selectionClick();
+                  setState(() {
+                    _kind = s.first;
+                    _status = null;
+                  });
+                },
               ),
             ),
             SizedBox(
@@ -228,7 +281,10 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
                       child: FilterChip(
                         label: const Text('All'),
                         selected: _status == null,
-                        onSelected: (_) => setState(() => _status = null),
+                        onSelected: (_) {
+                          HapticFeedback.selectionClick();
+                          setState(() => _status = null);
+                        },
                       ),
                     );
                   }
@@ -237,8 +293,11 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
                     child: FilterChip(
                       label: Text(_statusLabel(s)),
                       selected: _status == s,
-                      onSelected: (_) =>
-                          setState(() => _status = _status == s ? null : s),
+                      onSelected: (_) {
+                        HapticFeedback.selectionClick();
+                        setState(
+                            () => _status = _status == s ? null : s);
+                      },
                     ),
                   );
                 },
@@ -274,6 +333,8 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
             itemBuilder: (_, i) {
               final e = shown[i];
               return _ListRow(
+                id: e.anime.id,
+                kind: 'anime',
                 imageUrl: e.anime.imageUrl,
                 title: e.anime.title,
                 mean: e.anime.mean,
@@ -304,7 +365,12 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
           ),
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+        itemCount: 6,
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
+        itemBuilder: (_, _) => const SkeletonListRow(),
+      ),
       error: (e, _) => AsyncSection.error(
         error: e,
         onRetry: () => invalidateMyLists(ref),
@@ -330,6 +396,8 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
             itemBuilder: (_, i) {
               final e = shown[i];
               return _ListRow(
+                id: e.manga.id,
+                kind: 'manga',
                 imageUrl: e.manga.imageUrl,
                 title: e.manga.title,
                 mean: e.manga.mean,
@@ -360,7 +428,12 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
           ),
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+        itemCount: 6,
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
+        itemBuilder: (_, _) => const SkeletonListRow(),
+      ),
       error: (e, _) => AsyncSection.error(
         error: e,
         onRetry: () => invalidateMyLists(ref),
@@ -400,6 +473,8 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
 }
 
 class _ListRow extends StatefulWidget {
+  final int id;
+  final String kind; // 'anime' or 'manga'
   final String? imageUrl;
   final String title;
   final double? mean;
@@ -419,6 +494,8 @@ class _ListRow extends StatefulWidget {
   final bool compact;
 
   const _ListRow({
+    required this.id,
+    required this.kind,
     required this.imageUrl,
     required this.title,
     required this.mean,
@@ -485,7 +562,8 @@ class _ListRowState extends State<_ListRow> {
                   url: widget.imageUrl,
                   title: widget.title,
                   width: widget.compact ? 36 : 64,
-                  height: widget.compact ? 52 : 92),
+                  height: widget.compact ? 52 : 92,
+                  heroTag: 'poster-${widget.kind}-${widget.id}'),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -563,7 +641,10 @@ class _ListRowState extends State<_ListRow> {
                         const Spacer(),
                         _StepButton(
                           icon: Icons.add,
-                          onTap: () => widget.onStep(1),
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            widget.onStep(1);
+                          },
                         ),
                         IconButton(
                           icon: const Icon(Icons.edit_outlined, size: 20),
@@ -573,7 +654,10 @@ class _ListRowState extends State<_ListRow> {
                         ),
                         _StepButton(
                           icon: Icons.remove,
-                          onTap: () => widget.onStep(-1),
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            widget.onStep(-1);
+                          },
                         ),
                       ],
                     ),
