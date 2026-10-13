@@ -72,10 +72,14 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
 
+  bool get _isAnime => widget.kind == ListKind.anime;
+
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 4, vsync: this);
+    // Anime: 6 tabs (Synopsis, Characters, Staff, Media, Related, Reviews).
+    // Manga: 5 tabs (no Staff — Jikan has no manga staff endpoint).
+    _tabs = TabController(length: _isAnime ? 6 : 5, vsync: this);
   }
 
   @override
@@ -155,11 +159,14 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
               ),
             TabBar(
               controller: _tabs,
-              tabs: const [
-                Tab(text: 'Synopsis'),
-                Tab(text: 'Media'),
-                Tab(text: 'Related'),
-                Tab(text: 'Reviews'),
+              isScrollable: true,
+              tabs: [
+                const Tab(text: 'Synopsis'),
+                const Tab(text: 'Characters'),
+                if (_isAnime) const Tab(text: 'Staff'),
+                const Tab(text: 'Media'),
+                const Tab(text: 'Related'),
+                const Tab(text: 'Reviews'),
               ],
             ),
             Expanded(
@@ -167,6 +174,9 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
                 controller: _tabs,
                 children: [
                   _SynopsisTab(detail: d),
+                  _CharactersTab(
+                      id: d.id, isAnime: _isAnime),
+                  if (_isAnime) _StaffTab(animeId: d.id),
                   _MediaTab(detail: d),
                   _RelatedTab(detail: d),
                   _ReviewsTab(animeId: d.id),
@@ -309,6 +319,8 @@ class _SynopsisTab extends StatelessWidget {
         _infoRow(context, 'Season',
             detail.seasonYear != null ? '${_cap(detail.season)} ${detail.seasonYear}' : null),
         _infoRow(context, 'Status', _prettyStatus(detail.status)),
+        const SizedBox(height: 8),
+        _StatisticsSection(animeId: detail.id),
       ],
     );
   }
@@ -343,6 +355,318 @@ class _SynopsisTab extends StatelessWidget {
           Expanded(child: Text(value, style: textTheme.bodyMedium)),
         ],
       ),
+    );
+  }
+}
+
+/// Aggregate user statistics: status distribution + score distribution.
+/// Source: Jikan `/anime/{id}/statistics`.
+class _StatisticsSection extends ConsumerWidget {
+  final int animeId;
+
+  const _StatisticsSection({required this.animeId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stats = ref.watch(animeStatisticsProvider(animeId));
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return stats.when(
+      data: (s) {
+        if (s == null || s.total == 0) {
+          return const SizedBox.shrink();
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Divider(height: 24),
+            Text(
+              'Statistics',
+              style: textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            _statBar(context, 'Watching', s.watching, s.total,
+                scheme.primary),
+            _statBar(context, 'Completed', s.completed, s.total,
+                Colors.green),
+            _statBar(context, 'On Hold', s.onHold, s.total,
+                Colors.orange),
+            _statBar(context, 'Dropped', s.dropped, s.total,
+                scheme.error),
+            _statBar(context, 'Plan to Watch', s.planToWatch, s.total,
+                scheme.tertiary),
+            if (s.scorePercent.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text(
+                'Score distribution',
+                style: textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 120,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    for (int score = 10; score >= 1; score--)
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 2),
+                          child: Column(
+                            mainAxisAlignment:
+                                MainAxisAlignment.end,
+                            children: [
+                              Text(
+                                '${(s.scorePercent[score] ?? 0).toStringAsFixed(0)}%',
+                                style: textTheme.labelSmall?.copyWith(
+                                  fontSize: 9,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Container(
+                                height: 60 *
+                                    (s.scorePercent[score] ?? 0) /
+                                    _maxScore(s.scorePercent),
+                                decoration: BoxDecoration(
+                                  color: scheme.primaryContainer,
+                                  borderRadius:
+                                      const BorderRadius.vertical(
+                                    top: Radius.circular(3),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '$score',
+                                style: textTheme.labelSmall?.copyWith(
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
+    );
+  }
+
+  double _maxScore(Map<int, double> m) {
+    double max = 1;
+    for (final v in m.values) {
+      if (v > max) max = v;
+    }
+    return max;
+  }
+
+  Widget _statBar(BuildContext context, String label, int count,
+      int total, Color color) {
+    final textTheme = Theme.of(context).textTheme;
+    final pct = total > 0 ? count / total : 0.0;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(label, style: textTheme.bodySmall),
+          ),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: pct,
+                minHeight: 8,
+                backgroundColor:
+                    Theme.of(context).colorScheme.surfaceContainerHighest,
+                valueColor: AlwaysStoppedAnimation<Color>(color),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 70,
+            child: Text(
+              '${_fmt(count)} (${(pct * 100).toStringAsFixed(1)}%)',
+              style: textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.end,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _fmt(int n) {
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
+    return '$n';
+  }
+}
+
+/// Characters tab: grid of characters with voice actors (Jikan).
+class _CharactersTab extends ConsumerWidget {
+  final int id;
+  final bool isAnime;
+
+  const _CharactersTab({required this.id, required this.isAnime});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final chars = ref.watch(isAnime
+        ? animeCharactersProvider(id)
+        : mangaCharactersProvider(id));
+    final textTheme = Theme.of(context).textTheme;
+
+    return chars.when(
+      data: (items) {
+        if (items.isEmpty) {
+          return const Center(child: Text('No characters found.'));
+        }
+        return GridView.builder(
+          padding: const EdgeInsets.all(16),
+          gridDelegate:
+              const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            childAspectRatio: 0.62,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+          ),
+          itemCount: items.length,
+          itemBuilder: (_, i) {
+            final c = items[i];
+            return Column(
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: PosterImage(
+                      url: c.imageUrl,
+                      title: c.name,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  c.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.bodySmall
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                Text(
+                  c.role.isNotEmpty
+                      ? c.role
+                      : (c.voiceActors.isNotEmpty
+                          ? c.voiceActors.first
+                          : ''),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.labelSmall?.copyWith(
+                    color:
+                        Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            );
+          },
+        );
+      },
+      loading: () =>
+          const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Could not load: $e')),
+    );
+  }
+}
+
+/// Staff tab (anime only): list of staff with positions (Jikan).
+class _StaffTab extends ConsumerWidget {
+  final int animeId;
+
+  const _StaffTab({required this.animeId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final staff = ref.watch(animeStaffProvider(animeId));
+    final textTheme = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+
+    return staff.when(
+      data: (items) {
+        if (items.isEmpty) {
+          return const Center(child: Text('No staff found.'));
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: items.length,
+          separatorBuilder: (_, _) => const SizedBox(height: 8),
+          itemBuilder: (_, i) {
+            final s = items[i];
+            return Card.filled(
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: PosterImage(
+                        url: s.imageUrl,
+                        title: s.name,
+                        width: 48,
+                        height: 68,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            s.name,
+                            style: textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (s.positions.isNotEmpty)
+                            Text(
+                              s.positions.take(3).join(', '),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: textTheme.bodySmall?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+      loading: () =>
+          const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Could not load: $e')),
     );
   }
 }
