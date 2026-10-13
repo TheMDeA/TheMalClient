@@ -76,7 +76,7 @@ class _AboutScreenState extends State<AboutScreen> {
                 FutureBuilder<String>(
                   future: installedVersion(),
                   builder: (context, snap) => Text(
-                    'Version ${snap.data ?? '1.2.2'} · Flutter rewrite',
+                    'Version ${snap.data ?? '1.2.3'} · Flutter rewrite',
                     style: textTheme.bodyMedium?.copyWith(
                       color: scheme.onSurfaceVariant,
                     ),

@@ -1,8 +1,16 @@
-# MALClient v1.2.2
+# MALClient v1.2.3
 
-- New More Info tab: detailed metadata cards (media, episodes, status, premiered, aired dates, source, broadcast in your timezone, duration, rating, synonyms, alternative titles, studios, genres)
-- My List rows redesigned: MAL score with list users, color-coded status badge, your score, live airing countdown, media info with genres
-- Airing chip shows current episode and live countdown to the next episode, in your phone's timezone
-- Synopsis tab cleaned up — detailed info moved to the More Info tab
-- Fixed broadcast times showing wrong hours (timezone conversion) and countdowns not appearing
-- Characters/Staff tabs: added User-Agent for Jikan requests and clearer error messages with retry
+- Detail header redesigned: poster with title language switcher (TI/EN/JA), bookmark and info buttons, plus an info panel (rank, score, format, aired, popularity, studios, members)
+- My List search: filter your list by title as you type
+- Posters now animate into the detail page (Hero transition)
+- Haptic feedback on episode steppers, filter chips, and the Anime/Manga toggle
+- Skeleton loading placeholders in My List and Discover
+- Staggered entrance animations on lists, grids, and rails
+- New page transitions (fade + slide) for detail, settings, news, and history
+- Parallax collapsing header on the detail page
+- Airing countdowns pulse gently each second
+- Fixed profile statistics showing 0 entries/days and manga stats always empty
+- Fixed profile picture not loading from MyAnimeList
+- Fixed TI/EN/JA title switcher not changing the title
+- Fixed countdown chip overlapping the tab bar
+- Characters/Staff/Reviews tabs: retry on Jikan timeouts, longer receive timeout
