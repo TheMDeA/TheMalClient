@@ -7,6 +7,9 @@ All notable changes to MALClient (Flutter rewrite) are documented here.
 - New character pages: photo, about bio, favorites, and a tappable animeography grid
 - New staff pages: photo, biography, birthday, and a works grid with their positions
 - Character and staff cards are now tappable (they did nothing before)
+- Removed dead "coming soon" buttons on Home (notifications bell, Categories/Genres chips)
+- Media tab gallery now works for manga too
+- Fixed About dialog crediting Jikan instead of Tenrai
 
 ## [1.2.4] - 2026-10-13
 

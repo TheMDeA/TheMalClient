@@ -136,7 +136,7 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
           final id = widget.detail.id;
           ref.invalidate(_animeDetailProvider(id));
           ref.invalidate(animeCharactersProvider(id));
-          ref.invalidate(animePicturesProvider(id));
+          ref.invalidate(animePicturesProvider((id: id, isAnime: _isAnime)));
           ref.invalidate(animeStatisticsProvider(id));
           ref.invalidate(_reviewsProvider(id));
           if (_isAnime) ref.invalidate(animeStaffProvider(id));
@@ -182,7 +182,7 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
             _SynopsisTab(detail: d),
             _CharactersTab(id: d.id, isAnime: _isAnime),
             if (_isAnime) _StaffTab(animeId: d.id),
-            _MediaTab(detail: d),
+            _MediaTab(detail: d, isAnime: _isAnime),
             _RelatedTab(detail: d),
             _ReviewsTab(animeId: d.id),
             _MoreInfoTab(detail: d, isAnime: _isAnime),
@@ -1187,12 +1187,14 @@ class _StaffTab extends ConsumerWidget {
 
 class _MediaTab extends ConsumerWidget {
   final AnimeDetail detail;
+  final bool isAnime;
 
-  const _MediaTab({required this.detail});
+  const _MediaTab({required this.detail, required this.isAnime});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pictures = ref.watch(animePicturesProvider(detail.id));
+    final pictures =
+        ref.watch(animePicturesProvider((id: detail.id, isAnime: isAnime)));
     return pictures.when(
       data: (urls) {
         if (urls.isEmpty) {
@@ -1266,7 +1268,8 @@ class _MediaTab extends ConsumerWidget {
             const Text('Could not load pictures.'),
             TextButton(
               onPressed: () =>
-                  ref.invalidate(animePicturesProvider(detail.id)),
+                  ref.invalidate(
+                      animePicturesProvider((id: detail.id, isAnime: isAnime))),
               child: const Text('Retry'),
             ),
           ],
