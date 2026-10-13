@@ -170,7 +170,7 @@ class MediaRepository {
     if (isDemo) return DemoData.demoUser;
     final res = await _client.dio.get(
       '/users/@me',
-      queryParameters: {'fields': 'anime_statistics'},
+      queryParameters: {'fields': 'anime_statistics,manga_statistics'},
     );
     return MalUser.fromMal(res.data as Map<String, dynamic>);
   }

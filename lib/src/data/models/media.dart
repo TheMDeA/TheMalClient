@@ -548,11 +548,24 @@ class MalUserStats {
     this.totalEntries = 0,
   });
 
-  factory MalUserStats.fromMal(Map<String, dynamic> json) => MalUserStats(
-        daysWatched: (json['days_watched'] as num?)?.toDouble() ?? 0,
-        meanScore: (json['mean_score'] as num?)?.toDouble() ?? 0,
-        totalEntries: (json['total_entries'] as num?)?.toInt() ?? 0,
-      );
+  factory MalUserStats.fromMal(Map<String, dynamic> json) {
+    // MAL has no total-entries field: sum the num_items_* buckets.
+    var totalEntries = 0;
+    for (final e in json.entries) {
+      if (e.key.startsWith('num_items_')) {
+        totalEntries += (e.value as num?)?.toInt() ?? 0;
+      }
+    }
+    // Field names are num_days_watched (anime) / num_days_read (manga).
+    final days = (json['num_days_watched'] as num?) ??
+        (json['num_days_read'] as num?) ??
+        (json['num_days'] as num?);
+    return MalUserStats(
+      daysWatched: days?.toDouble() ?? 0,
+      meanScore: (json['mean_score'] as num?)?.toDouble() ?? 0,
+      totalEntries: totalEntries,
+    );
+  }
 }
 
 class MalUser {
@@ -569,12 +582,16 @@ class MalUser {
   });
 
   factory MalUser.fromMal(Map<String, dynamic> json) {
+    // MAL returns `picture` as a plain URL string, not a map.
     final pic = json['picture'];
     return MalUser(
       name: (json['name'] ?? '') as String,
-      pictureUrl: pic is Map<String, dynamic> ? pic['large'] as String? : null,
+      pictureUrl: pic is String ? pic : null,
       animeStats: json['anime_statistics'] is Map<String, dynamic>
           ? MalUserStats.fromMal(json['anime_statistics'] as Map<String, dynamic>)
+          : const MalUserStats(),
+      mangaStats: json['manga_statistics'] is Map<String, dynamic>
+          ? MalUserStats.fromMal(json['manga_statistics'] as Map<String, dynamic>)
           : const MalUserStats(),
     );
   }
