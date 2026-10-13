@@ -209,6 +209,25 @@ class AuthRepository {
             'Wi-Fi (or vice versa), a VPN, or set Private DNS to "dns.google" '
             'in Android settings.';
       }
+      if (e.response?.statusCode == 401) {
+        // 401 is unexpected here. Either the token endpoint rejected client
+        // authentication (e.g. the MAL app was registered as a confidential
+        // client and the request lacks its client_secret) or the API rejected
+        // the access token. Surface where it happened + MAL's own reason.
+        final data = e.response?.data;
+        final serverDetail = data is Map
+            ? (data['error_description'] ??
+                    data['message'] ??
+                    data['error'] ??
+                    '')
+                .toString()
+            : data.toString();
+        final uri = e.requestOptions.uri;
+        final where = '${uri.host}${uri.path}';
+        final hint =
+            serverDetail.isNotEmpty ? ' (reason: $serverDetail)' : '';
+        return 'MyAnimeList refused the request (401) at $where$hint.';
+      }
       if (e.response?.statusCode == 400) {
         // Surface MAL's own reason (e.g. invalid_grant) instead of a generic
         // message — it pinpoints whether the code was reused, expired, or
