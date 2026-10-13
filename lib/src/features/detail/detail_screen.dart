@@ -710,9 +710,20 @@ class _RelatedTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = detail.related.isNotEmpty
-        ? detail.related
-        : detail.recommendations;
+    // Normalize to (anime, relation label) pairs. Recommendations
+    // have no relation type.
+    final List<({AnimeSummary anime, String? label})> items;
+    if (detail.related.isNotEmpty) {
+      items = [
+        for (final r in detail.related)
+          (anime: r.anime, label: r.relationLabel),
+      ];
+    } else {
+      items = [
+        for (final a in detail.recommendations)
+          (anime: a, label: null),
+      ];
+    }
     if (items.isEmpty) {
       return const Center(child: Text('No related titles.'));
     }
@@ -726,13 +737,40 @@ class _RelatedTab extends StatelessWidget {
       ),
       itemCount: items.length,
       itemBuilder: (_, i) {
-        final a = items[i];
-        return PosterCard(
-          imageUrl: a.imageUrl,
-          title: a.title,
-          mean: a.mean,
-          width: double.infinity,
-          onTap: () => context.push('/detail/anime/${a.id}'),
+        final a = items[i].anime;
+        final label = items[i].label;
+        return Stack(
+          children: [
+            PosterCard(
+              imageUrl: a.imageUrl,
+              title: a.title,
+              mean: a.mean,
+              width: double.infinity,
+              onTap: () =>
+                  context.push('/detail/anime/${a.id}'),
+            ),
+            if (label != null)
+              Positioned(
+                top: 6,
+                left: 6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.72),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         );
       },
     );

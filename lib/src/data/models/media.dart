@@ -322,8 +322,28 @@ class MangaListEntry {
       );
 }
 
+/// A related anime/manga with its relation type from the MAL API
+/// (e.g. "Sequel", "Prequel", "Side Story").
+class RelatedEntry {
+  final AnimeSummary anime;
+  final String? relationLabel;
+
+  const RelatedEntry({required this.anime, this.relationLabel});
+}
+
+/// Fallback formatter for raw `relation_type` values like "side_story".
+/// Prefers the API's `relation_type_formatted` when available.
+String? _prettyRelation(String? raw) {
+  if (raw == null || raw.isEmpty) return null;
+  return raw
+      .split('_')
+      .map((w) =>
+          w.isEmpty ? w : w[0].toUpperCase() + w.substring(1))
+      .join(' ');
+}
+
 class AnimeDetail extends AnimeSummary {
-  final List<AnimeSummary> related;
+  final List<RelatedEntry> related;
   final List<AnimeSummary> recommendations;
   final String? source;
   final MyListStatus? myListStatus;
@@ -356,8 +376,24 @@ class AnimeDetail extends AnimeSummary {
 
   factory AnimeDetail.fromMal(Map<String, dynamic> json) {
     final base = AnimeSummary.fromMal(json);
-    List<AnimeSummary> rel(String key) {
+    List<RelatedEntry> rel(String key) {
       final l = json[key];
+      if (l is! List) return const [];
+      return [
+        for (final e in l)
+          if (e is Map<String, dynamic> && e['node'] is Map<String, dynamic>)
+            RelatedEntry(
+              anime: AnimeSummary.fromMal(
+                  e['node'] as Map<String, dynamic>),
+              relationLabel:
+                  (e['relation_type_formatted'] as String?) ??
+                      _prettyRelation(e['relation_type'] as String?),
+            )
+      ];
+    }
+
+    /// Recommendations have no relation type — plain summaries.
+    List<AnimeSummary> recs(dynamic l) {
       if (l is! List) return const [];
       return [
         for (final e in l)
@@ -386,7 +422,7 @@ class AnimeDetail extends AnimeSummary {
       studio: base.studio,
       numListUsers: base.numListUsers,
       related: rel('related_anime'),
-      recommendations: rel('recommendations'),
+      recommendations: recs(json['recommendations']),
       source: _str(json, 'source'),
       rating: _str(json, 'rating'),
       myListStatus: mls is Map<String, dynamic>

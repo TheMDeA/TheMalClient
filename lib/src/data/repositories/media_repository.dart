@@ -108,7 +108,11 @@ class MediaRepository {
         broadcastTime: base.broadcastTime,
         studio: base.studio,
         numListUsers: base.numListUsers,
-        related: DemoData.seasonalAnime.where((a) => a.id != id).take(6).toList(),
+        related: [
+          for (final a
+              in DemoData.seasonalAnime.where((a) => a.id != id).take(6))
+            RelatedEntry(anime: a),
+        ],
         recommendations:
             DemoData.seasonalAnime.where((a) => a.id != id).take(6).toList(),
       );
