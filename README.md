@@ -27,14 +27,6 @@ flutter run
 
 No API key needed to look around: hit **"Continue in demo mode"** on the login screen and the full UI loads with sample data.
 
-## Connect your MyAnimeList account
-
-1. Create an app at https://myanimelist.net/apiconfig
-2. Set the **App Redirect URL** to exactly `malclient://oauth`
-3. Paste the **Client ID** into `lib/src/core/config.dart` (`const malClientId = '...'`)
-
-That's it. Public stuff (seasonal, rankings, search, details) works right away; logging in unlocks your lists via OAuth2 PKCE, with tokens kept in secure storage.
-
 ## Build an APK
 
 ```bash
