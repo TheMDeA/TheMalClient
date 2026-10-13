@@ -78,6 +78,17 @@ class AuthRepository {
     );
   }
 
+  /// HTTP Basic client authentication for MAL's token endpoint (Scheme 1).
+  /// `client_id` is the username; the password is empty because our MAL app
+  /// has no client secret. Without this MAL answers 401 once the grant
+  /// itself validates.
+  static String _basicClientAuth() =>
+      'Basic ${base64.encode(utf8.encode('$malClientId:'))}';
+
+  static Options get _tokenPostOptions => Options(
+        contentType: Headers.formUrlEncodedContentType,
+        headers: {'Authorization': _basicClientAuth()},
+      );
   /// Tries to refresh the access token. Returns false when there is no
   /// refresh token or the refresh failed (caller should log out).
   Future<bool> refresh() async {
@@ -91,7 +102,7 @@ class AuthRepository {
           'client_id': malClientId,
           'refresh_token': refreshToken,
         },
-        options: Options(contentType: Headers.formUrlEncodedContentType),
+        options: _tokenPostOptions,
       );
       await _saveTokens(res.data as Map<String, dynamic>);
       return true;
@@ -167,7 +178,7 @@ class AuthRepository {
             malTokenUrl,
             data: tokenData(redirectForms[r]),
             options:
-                Options(contentType: Headers.formUrlEncodedContentType),
+                _tokenPostOptions,
           );
           await _storage.delete(key: _kVerifier);
           await setDemoMode(false);
