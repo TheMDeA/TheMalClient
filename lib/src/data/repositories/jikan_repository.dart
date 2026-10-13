@@ -12,14 +12,16 @@ class JikanRepository {
   final Dio _dio = Dio(BaseOptions(
     baseUrl: jikanApiBase,
     connectTimeout: const Duration(seconds: 15),
-    receiveTimeout: const Duration(seconds: 20),
+    // Jikan scrapes MAL on cache misses: first hits can take 20s+.
+    receiveTimeout: const Duration(seconds: 30),
     headers: {
       'User-Agent': 'MALClient/1.2.1 (https://github.com/TheMDeA/TheMalClient)',
     },
   ));
 
-  /// GET with retry on 429 (Jikan rate limit: 3 req/s). Waits and retries
-  /// up to 3 times with exponential backoff before giving up.
+  /// GET with retry. Jikan rate-limits (429) and also hangs under load
+  /// (timeouts) instead of answering 429 — retry both, up to 3 attempts
+  /// with backoff, before giving up.
   Future<Response> _get(String path,
       {Map<String, dynamic>? queryParameters}) async {
     DioException? lastError;
@@ -28,9 +30,14 @@ class JikanRepository {
         return await _dio.get(path, queryParameters: queryParameters);
       } on DioException catch (e) {
         lastError = e;
-        if (e.response?.statusCode == 429 && attempt < 2) {
-          // Exponential backoff: 1s, 2s.
-          await Future.delayed(Duration(seconds: attempt + 1));
+        final retryable = e.response?.statusCode == 429 ||
+            e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.receiveTimeout ||
+            e.type == DioExceptionType.sendTimeout ||
+            e.type == DioExceptionType.connectionError;
+        if (retryable && attempt < 2) {
+          // Backoff: 2s, 4s (Jikan asks for calm when overloaded).
+          await Future.delayed(Duration(seconds: (attempt + 1) * 2));
           continue;
         }
         rethrow;
