@@ -5,7 +5,7 @@ import 'package:malclient/src/core/api/mal_api_client.dart';
 import 'package:malclient/src/core/theme/app_theme.dart';
 import 'package:malclient/src/data/models/media.dart';
 import 'package:malclient/src/data/repositories/auth_repository.dart';
-import 'package:malclient/src/data/repositories/jikan_repository.dart';
+import 'package:malclient/src/data/repositories/tenrai_repository.dart';
 import 'package:malclient/src/data/repositories/list_repository.dart';
 import 'package:malclient/src/data/repositories/media_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -134,8 +134,8 @@ final listRepositoryProvider = Provider<ListRepository>((ref) {
   return ListRepository(ref.watch(malApiClientProvider), demo: demo);
 });
 
-final jikanRepositoryProvider = Provider<JikanRepository>(
-  (_) => JikanRepository(),
+final tenraiRepositoryProvider = Provider<TenraiRepository>(
+  (_) => TenraiRepository(),
 );
 
 // ---------- theme ----------
@@ -311,36 +311,36 @@ final topMangaProvider = FutureProvider<List<MangaSummary>>((ref) {
 });
 
 final homeNewsProvider = FutureProvider<List<NewsItem>>((ref) {
-  return ref.watch(jikanRepositoryProvider).homeNews();
+  return ref.watch(tenraiRepositoryProvider).homeNews();
 });
 
 /// Full news feed for the News screen.
 final newsProvider = FutureProvider<List<NewsItem>>((ref) {
-  return ref.watch(jikanRepositoryProvider).allNews();
+  return ref.watch(tenraiRepositoryProvider).allNews();
 });
 
 /// Characters for an anime (Jikan).
 final animeCharactersProvider =
     FutureProvider.family<List<AnimeCharacter>, int>((ref, id) {
-  return ref.watch(jikanRepositoryProvider).animeCharacters(id);
+  return ref.watch(tenraiRepositoryProvider).animeCharacters(id);
 });
 
 /// Staff for an anime (Jikan).
 final animeStaffProvider =
     FutureProvider.family<List<AnimeStaff>, int>((ref, id) {
-  return ref.watch(jikanRepositoryProvider).animeStaff(id);
+  return ref.watch(tenraiRepositoryProvider).animeStaff(id);
 });
 
 /// Aggregate statistics for an anime (Jikan).
 final animeStatisticsProvider =
     FutureProvider.family<AnimeStatistics?, int>((ref, id) {
-  return ref.watch(jikanRepositoryProvider).animeStatistics(id);
+  return ref.watch(tenraiRepositoryProvider).animeStatistics(id);
 });
 
 /// Characters for a manga (Jikan).
 final mangaCharactersProvider =
     FutureProvider.family<List<AnimeCharacter>, int>((ref, id) {
-  return ref.watch(jikanRepositoryProvider).mangaCharacters(id);
+  return ref.watch(tenraiRepositoryProvider).mangaCharacters(id);
 });
 
 /// My anime list, filtered by status (null = all).

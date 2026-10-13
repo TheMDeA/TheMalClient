@@ -25,7 +25,7 @@ const malApiBase = 'https://api.myanimelist.net/v2';
 
 /// Jikan (unofficial MAL API) — free, no key. Used for reviews,
 /// recommendations and news, which MAL API v2 does not provide.
-const jikanApiBase = 'https://api.jikan.moe/v4';
+const tenraiApiBase = 'https://api.tenrai.org/v1';
 
 bool get hasRealClientId =>
     malClientId != 'YOUR_CLIENT_ID' && malClientId.trim().isNotEmpty;
