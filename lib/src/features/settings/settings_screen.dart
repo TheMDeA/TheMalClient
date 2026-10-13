@@ -107,7 +107,7 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 24),
           Center(
             child: Text(
-              'MALClient 1.0.0 · Flutter rewrite\nData: MyAnimeList · Reviews/news: Jikan',
+              'MALClient 1.0.1 · Flutter rewrite\nData: MyAnimeList · Reviews/news: Jikan',
               textAlign: TextAlign.center,
               style: textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,

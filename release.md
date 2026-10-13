@@ -1,13 +1,10 @@
-# MALClient v1.0.0 — Flutter rewrite (first release)
+# MALClient v1.0.1
 
-A from-scratch rewrite of MALClient in Flutter.
+Login now works end-to-end, plus a theme setup step after signing in.
 
-- New warm dark theme (tan/peach accent) with light mode, 3 accent options
-- Bottom navigation: Home, Discover, Schedule, My List, Profile
-- Home: news rail, seasonal anime rail with score badges, suggested rail
-- Discover: search with live results, genre filters, Top Anime / Top Manga / Seasonal
-- Schedule: weekly airing calendar with episode countdowns
-- My List: anime/manga lists, status filters, episode steppers, full edit sheet
-- Title details: synopsis, media, related, reviews, add-to-list
-- Profile stats and settings
-- Log in with MyAnimeList (OAuth2); demo mode included for trying the UI
+- Log in with MyAnimeList (OAuth2 PKCE) in an in-app browser — no more external browser jump
+- "Logged in as" confirmation page after signing in
+- New "Select a Theme" setup page: 12 accent colors, auto/light/dark/black (AMOLED) theme modes, font picker
+- Theme setup also available anytime from Settings
+- Fixed: OAuth redirect no longer lands on an error page; login reliably reaches Home
+- Vector launcher icon (no missing-image build issues)
