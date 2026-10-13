@@ -44,6 +44,9 @@ class UpdateInfo {
 const _releasesUrl =
     'https://api.github.com/repos/TheMDeA/TheMalClient/releases/latest';
 
+const _releasesListUrl =
+    'https://api.github.com/repos/TheMDeA/TheMalClient/releases';
+
 const _updateChannel = MethodChannel('malclient/update');
 
 /// Numeric version comparison: "1.1.10" > "1.1.9". Non-numeric suffixes
@@ -393,4 +396,81 @@ Future<UpdateInfo?> maybeAutoCheckUpdate() async {
 Future<void> dismissUpdateVersion(String version) async {
   final prefs = await SharedPreferences.getInstance();
   await prefs.setString('dismissedUpdateVersion', version);
+}
+
+/// Release notes for the "What's new" section, fetched from the public
+/// GitHub releases feed — the same source as the update checker.
+class ReleaseNotes {
+  const ReleaseNotes({
+    required this.version,
+    required this.tag,
+    required this.notes,
+  });
+
+  /// Version without the leading "v", e.g. "1.2.5".
+  final String version;
+
+  /// Full tag, e.g. "v1.2.5".
+  final String tag;
+
+  /// Release body (changelog markdown).
+  final String notes;
+}
+
+List<ReleaseNotes> _parseReleaseNotes(String body) {
+  final json = jsonDecode(body) as List;
+  return [
+    for (final r in json)
+      if (r is Map<String, dynamic>)
+        ReleaseNotes(
+          version: ((r['tag_name'] as String? ?? '').trim())
+              .replaceFirst(RegExp(r'^v'), ''),
+          tag: (r['tag_name'] as String? ?? '').trim(),
+          notes: (r['body'] as String? ?? '').trim(),
+        ),
+  ];
+}
+
+/// Fetches the latest release notes from GitHub. Results are cached for
+/// 24 hours so opening About doesn't hit the API every time; a stale
+/// cache is served when the network fails. Throws only when there is
+/// neither cache nor network.
+Future<List<ReleaseNotes>> fetchReleaseNotes({int count = 5}) async {
+  final prefs = await SharedPreferences.getInstance();
+  final cached = prefs.getString('cachedReleaseNotes');
+  final cachedAt = prefs.getInt('cachedReleaseNotesAt') ?? 0;
+  final fresh = DateTime.now().millisecondsSinceEpoch - cachedAt <
+      const Duration(hours: 24).inMilliseconds;
+  if (cached != null && fresh) return _parseReleaseNotes(cached);
+
+  try {
+    final current = await installedVersion();
+    final res = await http
+        .get(
+          Uri.parse('$_releasesListUrl?per_page=$count'),
+          headers: {
+            'Accept': 'application/vnd.github+json',
+            'User-Agent': 'MALClient/$current',
+          },
+        )
+        .timeout(const Duration(seconds: 15));
+    if (res.statusCode != 200) {
+      throw HttpException('GitHub API returned ${res.statusCode}',
+          uri: Uri.parse(_releasesListUrl));
+    }
+    await prefs.setString('cachedReleaseNotes', res.body);
+    await prefs.setInt(
+        'cachedReleaseNotesAt', DateTime.now().millisecondsSinceEpoch);
+    return _parseReleaseNotes(res.body);
+  } catch (_) {
+    if (cached != null) return _parseReleaseNotes(cached);
+    rethrow;
+  }
+}
+
+/// Forces a fresh fetch of the release notes, bypassing the cache.
+Future<List<ReleaseNotes>> refreshReleaseNotes({int count = 5}) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove('cachedReleaseNotesAt');
+  return fetchReleaseNotes(count: count);
 }

@@ -142,27 +142,7 @@ class _AboutScreenState extends State<AboutScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          Text(
-            "What's new",
-            style: textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          for (final item in _changelog)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 3),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('•  ', style: textTheme.bodyMedium),
-                  Expanded(
-                    child:
-                        Text(item, style: textTheme.bodyMedium),
-                  ),
-                ],
-              ),
-            ),
+          _ChangelogSection(textTheme: textTheme, scheme: scheme),
           const SizedBox(height: 24),
           Text(
             'Data sources',
@@ -172,7 +152,7 @@ class _AboutScreenState extends State<AboutScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Anime & manga data: MyAnimeList API\nReviews & news: Jikan API',
+            'Anime & manga data: MyAnimeList API\nReviews, news & characters: Tenrai API',
             style: textTheme.bodyMedium?.copyWith(
               color: scheme.onSurfaceVariant,
             ),
@@ -183,7 +163,157 @@ class _AboutScreenState extends State<AboutScreen> {
   }
 }
 
-const _changelog = [
+/// "What's new": release notes fetched from the GitHub releases feed
+/// (same source as the update checker), cached for 24h. Falls back to a
+/// static highlights list when offline with no cache.
+class _ChangelogSection extends StatefulWidget {
+  final TextTheme textTheme;
+  final ColorScheme scheme;
+
+  const _ChangelogSection({required this.textTheme, required this.scheme});
+
+  @override
+  State<_ChangelogSection> createState() => _ChangelogSectionState();
+}
+
+class _ChangelogSectionState extends State<_ChangelogSection> {
+  late Future<List<ReleaseNotes>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = fetchReleaseNotes();
+  }
+
+  void _refresh() {
+    setState(() => _future = refreshReleaseNotes());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = widget.textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                "What's new",
+                style: textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.refresh, size: 20),
+              tooltip: 'Refresh',
+              onPressed: _refresh,
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        FutureBuilder<List<ReleaseNotes>>(
+          future: _future,
+          builder: (context, snap) {
+            if (snap.connectionState == ConnectionState.waiting) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              );
+            }
+            if (snap.hasError || !(snap.hasData && snap.data!.isNotEmpty)) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final item in _fallbackChangelog)
+                    _bullet(textTheme, item),
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    icon: const Icon(Icons.refresh, size: 16),
+                    label: const Text('Retry'),
+                    onPressed: _refresh,
+                  ),
+                ],
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final release in snap.data!)
+                  if (release.notes.isNotEmpty) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8, bottom: 2),
+                      child: Text(
+                        release.tag,
+                        style: textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: widget.scheme.primary,
+                        ),
+                      ),
+                    ),
+                    for (final line in _notesToBullets(release.notes))
+                      _bullet(textTheme, line),
+                  ],
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _bullet(TextTheme textTheme, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('•  ', style: textTheme.bodyMedium),
+          Expanded(
+            child: Text(text, style: textTheme.bodyMedium),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Turns release-note markdown into plain bullet strings: skips headers,
+/// strips `- `/`* ` markers and light markdown (bold, code, links).
+List<String> _notesToBullets(String notes) {
+  final out = <String>[];
+  for (var line in notes.split('\n')) {
+    line = line.trim();
+    if (line.isEmpty || line.startsWith('#')) continue;
+    if (line.startsWith('- ')) {
+      line = line.substring(2).trim();
+    } else if (line.startsWith('* ')) {
+      line = line.substring(2).trim();
+    }
+    // [text](url) -> text
+    line = line.replaceAllMapped(
+      RegExp(r'\[([^\]]+)\]\([^)]+\)'),
+      (m) => m.group(1)!,
+    );
+    line = line
+        .replaceAll('**', '')
+        .replaceAll('`', '')
+        .replaceAll(RegExp(r'^_ | _$'), '')
+        .trim();
+    if (line.isNotEmpty) out.add(line);
+  }
+  return out;
+}
+
+const _fallbackChangelog = [
   'Full list entry editor with rewatch status, dates, priority and comments',
   'Sort, filter and display options for My List',
   'Characters & staff tabs and statistics on detail pages',
