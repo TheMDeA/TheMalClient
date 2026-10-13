@@ -12,7 +12,10 @@ import 'package:malclient/src/features/mylist/mylist_screen.dart';
 import 'package:malclient/src/features/profile/profile_screen.dart';
 import 'package:malclient/src/features/schedule/schedule_screen.dart';
 import 'package:malclient/src/features/news/news_screen.dart';
+import 'package:malclient/src/features/settings/about_screen.dart';
+import 'package:malclient/src/features/settings/list_preferences_screen.dart';
 import 'package:malclient/src/features/settings/settings_screen.dart';
+import 'package:malclient/src/features/settings/theme_settings_screen.dart';
 import 'package:malclient/src/features/setup/setup_screen.dart';
 import 'package:malclient/src/features/welcome/welcome_screen.dart';
 import 'package:malclient/src/widgets/app_shell.dart';
@@ -144,6 +147,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings',
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/settings/theme',
+        builder: (context, state) => const ThemeSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/settings/list',
+        builder: (context, state) => const ListPreferencesScreen(),
+      ),
+      GoRoute(
+        path: '/settings/about',
+        builder: (context, state) => const AboutScreen(),
       ),
       GoRoute(
         path: '/history',

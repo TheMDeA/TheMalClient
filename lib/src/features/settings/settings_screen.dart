@@ -2,256 +2,132 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:malclient/src/core/providers.dart';
-import 'package:malclient/src/core/theme/app_theme.dart';
 
-/// Settings: appearance, accent, cache, about, logout.
+/// Settings main menu, in the style of the classic MALClient settings:
+/// icon + title + subtitle rows that open sub-screens. Only lists
+/// settings that actually exist in this app.
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(themeModeProvider);
-    final accent = ref.watch(accentProvider);
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
         children: [
-          Text('Appearance',
-              style:
-                  textTheme.titleSmall?.copyWith(color: scheme.primary)),
-          const SizedBox(height: 8),
-          Card.filled(
-            child: Column(
-              children: [
-                _ThemeTile(
-                  title: 'Auto (system)',
-                  icon: Icons.settings_suggest_outlined,
-                  selected: themeMode == AppThemeMode.auto,
-                  onTap: () =>
-                      ref.read(themeModeProvider.notifier).set(AppThemeMode.auto),
-                ),
-                _ThemeTile(
-                  title: 'Light',
-                  icon: Icons.light_mode_outlined,
-                  selected: themeMode == AppThemeMode.light,
-                  onTap: () =>
-                      ref.read(themeModeProvider.notifier).set(AppThemeMode.light),
-                ),
-                _ThemeTile(
-                  title: 'Dark',
-                  icon: Icons.dark_mode_outlined,
-                  selected: themeMode == AppThemeMode.dark,
-                  onTap: () =>
-                      ref.read(themeModeProvider.notifier).set(AppThemeMode.dark),
-                ),
-                _ThemeTile(
-                  title: 'Black (AMOLED)',
-                  icon: Icons.contrast_outlined,
-                  selected: themeMode == AppThemeMode.black,
-                  onTap: () =>
-                      ref.read(themeModeProvider.notifier).set(AppThemeMode.black),
-                ),
-                ListTile(
-                  leading: Icon(Icons.palette_outlined,
-                      color: scheme.onSurfaceVariant),
-                  title: const Text('Theme setup'),
-                  subtitle: Text(
-                      'Colors, background image, font (${accent.label})'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.go('/setup'),
-                ),
-              ],
-            ),
+          _MenuRow(
+            icon: Icons.palette_outlined,
+            title: 'Theme Settings',
+            subtitle: 'Light, dark, black AMOLED, accents and fonts.',
+            onTap: () => context.push('/settings/theme'),
           ),
-          const SizedBox(height: 20),
-          Text('List dates',
-              style:
-                  textTheme.titleSmall?.copyWith(color: scheme.primary)),
-          const SizedBox(height: 8),
-          Card.filled(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _DateAutoSetHeader(),
-                _DateAutoSetTile(
-                  label: 'Set to today when adding to list.',
-                  group: 'Start date:',
-                  value: ref.watch(dateAutoSetProvider).startOnAdd,
-                  onChanged: (v) => ref
-                      .read(dateAutoSetProvider.notifier)
-                      .setStartOnAdd(v),
-                ),
-                _DateAutoSetTile(
-                  label: 'Set to today when setting watching status.',
-                  group: null,
-                  value: ref.watch(dateAutoSetProvider).startOnWatching,
-                  onChanged: (v) => ref
-                      .read(dateAutoSetProvider.notifier)
-                      .setStartOnWatching(v),
-                ),
-                _DateAutoSetTile(
-                  label: 'Set to today when setting completed status.',
-                  group: 'End date:',
-                  value: ref.watch(dateAutoSetProvider).endOnCompleted,
-                  onChanged: (v) => ref
-                      .read(dateAutoSetProvider.notifier)
-                      .setEndOnCompleted(v),
-                ),
-                _DateAutoSetTile(
-                  label: 'Set to today when setting dropped status.',
-                  group: null,
-                  value: ref.watch(dateAutoSetProvider).endOnDropped,
-                  onChanged: (v) => ref
-                      .read(dateAutoSetProvider.notifier)
-                      .setEndOnDropped(v),
-                ),
-                _DateAutoSetTile(
-                  label:
-                      'Allow for valid date override under selected circumstances.',
-                  group: null,
-                  value: ref.watch(dateAutoSetProvider).allowOverride,
-                  onChanged: (v) => ref
-                      .read(dateAutoSetProvider.notifier)
-                      .setAllowOverride(v),
-                ),
-              ],
-            ),
+          _MenuRow(
+            icon: Icons.view_list_outlined,
+            title: 'List Preferences',
+            subtitle: 'Auto-set dates and list display options.',
+            onTap: () => context.push('/settings/list'),
           ),
-          const SizedBox(height: 20),
-          Text('Storage',
-              style:
-                  textTheme.titleSmall?.copyWith(color: scheme.primary)),
-          const SizedBox(height: 8),
-          Card.filled(
-            child: ListTile(
-              leading: const Icon(Icons.delete_sweep_outlined),
-              title: const Text('Clear image cache'),
-              subtitle: const Text('Frees space used by cached posters'),
-              onTap: () async {
-                // CachedNetworkImage evicts via its cache manager; a full
-                // clear is a best-effort here.
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Image cache will refresh on next load.')),
-                  );
-                }
-              },
-            ),
+          _MenuRow(
+            icon: Icons.storage_outlined,
+            title: 'Storage',
+            subtitle: 'Clear cached posters and data.',
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content:
+                        Text('Image cache will refresh on next load.')),
+              );
+            },
           ),
-          const SizedBox(height: 20),
-          Text('Account',
-              style:
-                  textTheme.titleSmall?.copyWith(color: scheme.primary)),
-          const SizedBox(height: 8),
-          Card.filled(
-            child: ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Log out'),
-              onTap: () async {
-                await ref.read(authControllerProvider.notifier).logout();
-                if (context.mounted) context.go('/login');
-              },
-            ),
+          _MenuRow(
+            icon: Icons.info_outlined,
+            title: 'About',
+            subtitle: 'Version, changelog, data sources.',
+            onTap: () => context.push('/settings/about'),
           ),
-          const SizedBox(height: 24),
-          Center(
-            child: Text(
-              'MALClient 1.1.0 · Flutter rewrite\nData: MyAnimeList · Reviews/news: Jikan',
-              textAlign: TextAlign.center,
-              style: textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
+          _MenuRow(
+            icon: Icons.logout,
+            title: 'Log Out',
+            subtitle: 'Log out from the app.',
+            onTap: () => _confirmLogout(context, ref),
           ),
         ],
       ),
     );
   }
+
+  Future<void> _confirmLogout(
+      BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Log out?'),
+        content:
+            const Text('You will need to sign in again to use the app.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Log out'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await ref.read(authControllerProvider.notifier).logout();
+      if (context.mounted) context.go('/login');
+    }
+  }
 }
 
-class _ThemeTile extends StatelessWidget {
-  final String title;
+class _MenuRow extends StatelessWidget {
   final IconData icon;
-  final bool selected;
+  final String title;
+  final String subtitle;
   final VoidCallback onTap;
 
-  const _ThemeTile({
-    required this.title,
+  const _MenuRow({
     required this.icon,
-    required this.selected,
+    required this.title,
+    required this.subtitle,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return ListTile(
-      leading: Icon(icon,
-          color: selected ? scheme.primary : scheme.onSurfaceVariant),
-      title: Text(title),
-      trailing: selected
-          ? Icon(Icons.check, color: scheme.primary)
-          : null,
+    final textTheme = Theme.of(context).textTheme;
+    return InkWell(
       onTap: onTap,
-    );
-  }
-}
-
-class _DateAutoSetHeader extends StatelessWidget {
-  const _DateAutoSetHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Text(
-        'Start/End date auto setters:',
-        style: Theme.of(context).textTheme.titleSmall,
-      ),
-    );
-  }
-}
-
-class _DateAutoSetTile extends StatelessWidget {
-  final String? group;
-  final String label;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  const _DateAutoSetTile({
-    this.group,
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return CheckboxListTile(
-      title: Row(
-        children: [
-          if (group != null) ...[
-            SizedBox(
-              width: 72,
-              child: Text(
-                group!,
-                style: Theme.of(context).textTheme.bodyMedium,
+      child: Padding(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Row(
+          children: [
+            Icon(icon,
+                size: 28, color: scheme.onSurfaceVariant),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: textTheme.titleMedium),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
-          Expanded(child: Text(label)),
-        ],
+        ),
       ),
-      value: value,
-      onChanged: (v) => onChanged(v ?? false),
-      controlAffinity: ListTileControlAffinity.leading,
-      dense: true,
     );
   }
 }
-
