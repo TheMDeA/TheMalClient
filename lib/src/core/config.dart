@@ -7,7 +7,7 @@
 ///
 /// Until a real client ID is set, the app runs in demo mode with bundled
 /// sample data so the whole UI is reviewable without API access.
-const malClientId = 'YOUR_CLIENT_ID';
+const malClientId = '3da8b7f2721431cd6adb3740d5c51d60';
 
 /// Must match the "App Redirect URL" registered at myanimelist.net/apiconfig
 /// AND the intent-filter in AndroidManifest.xml.
