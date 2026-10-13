@@ -25,7 +25,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       final repo = ref.read(authRepositoryProvider);
       final url = await repo.beginLogin();
-      final launched = await launchUrl(url, mode: LaunchMode.externalApplication);
+      // In-app browser (Custom Tab): stays inside MALClient instead of
+      // jumping to an external browser app. The malclient://oauth redirect
+      // is still delivered back to the app when MAL finishes.
+      final launched = await launchUrl(url, mode: LaunchMode.inAppBrowserView);
       if (!launched && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not open the browser.')),
