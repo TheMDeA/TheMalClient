@@ -59,7 +59,7 @@ class ProfileScreen extends ConsumerWidget {
                       Text(
                         'A from-scratch Flutter rewrite of MyAL '
                         'MyAnimeList app. Data by MyAnimeList; reviews and '
-                        'news by Jikan.',
+                        'news by Tenrai.',
                       ),
                     ],
                   ),

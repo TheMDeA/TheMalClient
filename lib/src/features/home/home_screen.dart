@@ -93,10 +93,6 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () => _soon(context, 'Notifications'),
-          ),
-          IconButton(
             icon: const Icon(Icons.bookmark_border),
             onPressed: () => context.go('/mylist'),
           ),
@@ -110,7 +106,7 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _filterChips(BuildContext context) {
-    final chips = ['Categories', 'Genres', 'Top Anime', 'Top Manga'];
+    const chips = ['Top Anime', 'Top Manga'];
     return SizedBox(
       height: 48,
       child: ListView.separated(
@@ -130,8 +126,6 @@ class HomeScreen extends ConsumerWidget {
                     context.go('/discover?tab=top');
                   case 'Top Manga':
                     context.go('/discover?tab=manga');
-                  default:
-                    _soon(context, label);
                 }
               },
             ),
@@ -192,12 +186,6 @@ class HomeScreen extends ConsumerWidget {
         error: e,
         onRetry: () => ref.invalidate(seasonalAnimeProvider),
       ),
-    );
-  }
-
-  void _soon(BuildContext context, String what) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$what is coming soon in this preview.')),
     );
   }
 }

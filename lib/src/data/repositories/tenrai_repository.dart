@@ -204,21 +204,34 @@ class TenraiRepository {
     }
   }
 
-  /// Picture URLs (large) for an anime (`/anime/{id}/pictures`).
+  /// Picture URLs (large) for an anime or manga
+  /// (`/anime/{id}/pictures` or `/manga/{id}/pictures`).
   /// Returns empty on network/API errors.
-  Future<List<String>> animePictures(int malId) async {    try {
-      final res = await _get('/anime/$malId/pictures');
+  Future<List<String>> pictures(int malId, {required bool isAnime}) async {
+    try {
+      final res = await _get('/${isAnime ? 'anime' : 'manga'}/$malId/pictures');
       final data = (res.data as Map<String, dynamic>)['data'];
       if (data is! List) return const [];
       return [
         for (final e in data)
-          if (e is Map<String, dynamic>)
-            (e['jpg'] as Map?)?['large_image_url'] as String? ??
-                (e['jpg'] as Map?)?['image_url'] as String?,
+          if (e is Map<String, dynamic>) _jpgLarge(e),
       ].whereType<String>().toList();
     } catch (_) {
       return const [];
     }
+  }
+
+  /// Picture URLs (large) for an anime (`/anime/{id}/pictures`).
+  /// Returns empty on network/API errors.
+  Future<List<String>> animePictures(int malId) =>
+      pictures(malId, isAnime: true);
+
+  /// Extracts the large (falling back to regular) jpg URL from a
+  /// Jikan-style picture entry, or null.
+  String? _jpgLarge(Map<String, dynamic> e) {
+    final jpg = e['jpg'];
+    if (jpg is! Map) return null;
+    return (jpg['large_image_url'] ?? jpg['image_url']) as String?;
   }
 
   /// Characters for a manga (`/manga/{id}/characters`).

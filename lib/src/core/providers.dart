@@ -343,10 +343,13 @@ final mangaCharactersProvider =
   return ref.watch(tenraiRepositoryProvider).mangaCharacters(id);
 });
 
-/// Pictures for an anime (Tenrai).
+/// Pictures for an anime or manga (Tenrai).
 final animePicturesProvider =
-    FutureProvider.family<List<String>, int>((ref, id) {
-  return ref.watch(tenraiRepositoryProvider).animePictures(id);
+    FutureProvider.family<List<String>, ({int id, bool isAnime})>((ref, args) {
+  return ref.watch(tenraiRepositoryProvider).pictures(
+        args.id,
+        isAnime: args.isAnime,
+      );
 });
 
 /// Full character details (Tenrai).
