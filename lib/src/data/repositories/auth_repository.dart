@@ -176,7 +176,18 @@ class AuthRepository {
             'in Android settings.';
       }
       if (e.response?.statusCode == 400) {
-        return 'MyAnimeList rejected the login request. Please try again.';
+        // Surface MAL's own reason (e.g. invalid_grant) instead of a generic
+        // message — it pinpoints whether the code was reused, expired, or
+        // mismatched.
+        final data = e.response?.data;
+        final serverDetail = data is Map
+            ? (data['error_description'] ?? data['message'] ?? data['error'] ?? '')
+                .toString()
+            : data.toString();
+        final hint =
+            serverDetail.isNotEmpty ? ' (reason: $serverDetail)' : '';
+        return 'MyAnimeList rejected the login request$hint. Please force-close '
+            'the app and log in again from the start.';
       }
     }
     return e.toString();
