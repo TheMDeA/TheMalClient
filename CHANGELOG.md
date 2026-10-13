@@ -17,7 +17,7 @@ All notable changes to MALClient (Flutter rewrite) are documented here.
 - Fixed profile picture not loading from MyAnimeList
 - Fixed TI/EN/JA title switcher not changing the title (alt titles were dropped)
 - Fixed countdown chip overlapping the tab bar
-- Characters/Staff/Reviews tabs: retry on Jikan timeouts, longer receive timeout
+- Characters, Staff, Reviews, News, and Statistics now use the Tenrai API (Jikan's public API was discontinued)
 
 ## [1.2.2] - 2026-10-13
 
@@ -27,17 +27,13 @@ All notable changes to MALClient (Flutter rewrite) are documented here.
 - Synopsis tab cleaned up — detailed info moved to the More Info tab
 - Fixed broadcast times showing wrong hours (timezone conversion) and countdowns not appearing
 - Characters/Staff tabs: added User-Agent for Jikan requests and clearer error messages with retry
+- Fixed Characters/Staff tabs showing empty lists on network errors — errors now surface with a retry button, plus automatic retry on rate limits
 
 ## [1.2.1] - 2026-10-13
 
 - Settings restructured into a DailyAL-style menu with sub-screens (Theme Settings, List Preferences, About)
 - In-app updater: check for updates manually or auto-check daily, download and install new versions without leaving the app
 - Related tab now shows relation type badges (Sequel, Prequel, Side Story, etc.)
-- New More Info tab: detailed metadata cards (media, episodes, status, premiered, aired dates, source, broadcast in local timezone, duration, rating, synonyms, alternative titles, studios, genres)
-- Synopsis tab now has a full Information section (format, score, rank, popularity, members, studio, source, season, status, rating)
-- Airing chip shows current episode and live countdown to the next episode, in the phone's local timezone
-- My List rows redesigned: MAL score with list users, color-coded status badge (CW/C/OH/D/PTW), your score, live airing countdown, media info with genres, progress with quick steppers
-- Fixed Characters/Staff tabs showing "not found" on network errors — now shows an error state with a retry button, plus automatic retry on Jikan rate limits
 
 ## [1.1.0] - 2026-10-13
 

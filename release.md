@@ -11,6 +11,6 @@
 - Airing countdowns pulse gently each second
 - Fixed profile statistics showing 0 entries/days and manga stats always empty
 - Fixed profile picture not loading from MyAnimeList
-- Fixed TI/EN/JA title switcher not changing the title
+- Fixed TI/EN/JA title switcher not changing the title (alt titles were dropped)
 - Fixed countdown chip overlapping the tab bar
-- Characters/Staff/Reviews tabs: retry on Jikan timeouts, longer receive timeout
+- Characters, Staff, Reviews, News, and Statistics now use the Tenrai API (Jikan's public API was discontinued)
