@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:malclient/src/core/providers.dart';
+import 'package:malclient/src/core/theme/app_theme.dart';
 import 'package:malclient/src/data/models/media.dart';
 import 'package:malclient/src/features/mylist/filter_sheet.dart';
 import 'package:malclient/src/features/mylist/list_filter.dart';
@@ -812,13 +813,15 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
     final (label, color) = switch (status) {
-      'watching' || 'reading' => ('CW', Colors.green),
-      'completed' => ('C', Colors.blue),
-      'on_hold' => ('OH', Colors.orange),
-      'dropped' => ('D', Colors.red),
-      'plan_to_watch' || 'plan_to_read' => ('PTW', Colors.grey),
-      _ => ('?', Colors.grey),
+      'watching' || 'reading' => ('CW', statusColorFor(brightness, status)),
+      'completed' => ('C', statusColorFor(brightness, status)),
+      'on_hold' => ('OH', statusColorFor(brightness, status)),
+      'dropped' => ('D', statusColorFor(brightness, status)),
+      'plan_to_watch' || 'plan_to_read' =>
+        ('PTW', statusColorFor(brightness, status)),
+      _ => ('?', statusColorFor(brightness, status)),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

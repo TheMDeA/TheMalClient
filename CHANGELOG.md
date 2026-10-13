@@ -2,6 +2,14 @@
 
 All notable changes to MALClient (Flutter rewrite) are documented here.
 
+## [1.2.7] - 2026-10-14
+
+- Fixed the accent picker checkmark being invisible on light accent colors
+- List status colors (Watching, Completed…) now adapt to light/dark theme
+- Removed the duplicate theme-mode picker from the theme setup screen
+- System navigation bar now matches the app theme
+- App background now takes a subtle tint of the chosen accent color
+
 ## [1.2.6] - 2026-10-13
 
 - Fixed score badges on Discover posters being unreadable (dark text on dark background)

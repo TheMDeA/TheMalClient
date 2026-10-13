@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:malclient/src/core/providers.dart';
+import 'package:malclient/src/core/theme/app_theme.dart';
 import 'package:malclient/src/data/models/media.dart';
 import 'package:malclient/src/features/mylist/mylist_screen.dart';
 import 'package:malclient/src/widgets/poster_card.dart';
@@ -849,8 +850,18 @@ class _StatisticsSection extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             _statBar(context, 'Watching', s.watching, s.total, scheme.primary),
-            _statBar(context, 'Completed', s.completed, s.total, Colors.green),
-            _statBar(context, 'On Hold', s.onHold, s.total, Colors.orange),
+            _statBar(
+                context,
+                'Completed',
+                s.completed,
+                s.total,
+                statusColorFor(scheme.brightness, 'completed')),
+            _statBar(
+                context,
+                'On Hold',
+                s.onHold,
+                s.total,
+                statusColorFor(scheme.brightness, 'on_hold')),
             _statBar(context, 'Dropped', s.dropped, s.total, scheme.error),
             _statBar(
               context,

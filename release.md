@@ -1,5 +1,7 @@
-# MyAL v1.2.6
+# MyAL v1.2.7
 
-- Fixed score badges on Discover posters being unreadable (dark text on dark background)
-- Detail list-entry button now shows your status and episode progress ("Watching • 12/64")
-- Detail page refreshes itself right after you save a list entry (no more stale status pill)
+- Fixed the accent picker checkmark being invisible on light accent colors
+- List status colors (Watching, Completed…) now adapt to light/dark theme
+- Removed the duplicate theme-mode picker from the theme setup screen
+- System navigation bar now matches the app theme
+- App background now takes a subtle tint of the chosen accent color
