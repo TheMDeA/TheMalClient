@@ -1,4 +1,4 @@
-# MALClient v0.1.0 — Flutter rewrite (first release)
+# MALClient v1.0.0 — Flutter rewrite (first release)
 
 A from-scratch rewrite of MALClient in Flutter.
 
