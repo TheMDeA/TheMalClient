@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:malclient/src/core/config.dart';
@@ -152,8 +151,9 @@ class AuthRepository {
   }
 
   String _challengeFor(String verifier) {
-    final digest = sha256.convert(utf8.encode(verifier));
-    return base64Url.encode(digest.bytes).replaceAll('=', '');
+    // MAL only supports the `plain` PKCE method: the challenge is the
+    // verifier itself, no hashing.
+    return verifier;
   }
 
   /// Builds the MAL authorize URL and stores the PKCE verifier for the
@@ -166,7 +166,7 @@ class AuthRepository {
       'client_id': malClientId,
       'redirect_uri': malRedirectUri,
       'code_challenge': _challengeFor(verifier),
-      'code_challenge_method': 'S256',
+      'code_challenge_method': 'plain',
     });
   }
 
