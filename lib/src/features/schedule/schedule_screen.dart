@@ -125,22 +125,47 @@ class _ScheduleCard extends StatelessWidget {
 
   const _ScheduleCard({required this.anime});
 
-  /// Time until the next episode, based on broadcast day/time.
-  /// Null when the schedule info is missing.
+  /// Time until the next episode. Broadcast times are JST (UTC+9);
+  /// converted to the phone's local timezone. Null when missing.
   Duration? _countdown() {
     if (anime.broadcastDay == null) return null;
     final targetWeekday = _weekdays.indexOf(anime.broadcastDay!) + 1; // Mon=1
     if (targetWeekday < 1) return null;
-    final now = DateTime.now();
-    var day = DateTime(now.year, now.month, now.day);
-    var delta = (targetWeekday - now.weekday) % 7;
-    day = day.add(Duration(days: delta));
     final parts = (anime.broadcastTime ?? '00:00').split(':');
     final h = (int.tryParse(parts[0]) ?? 0) % 24;
     final m = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
-    var airing = DateTime(day.year, day.month, day.day, h, m);
-    if (!airing.isAfter(now)) airing = airing.add(const Duration(days: 7));
-    return airing.difference(now);
+
+    // Work in JST, then convert to local.
+    final jstNow = DateTime.now().toUtc().add(const Duration(hours: 9));
+    var day = DateTime.utc(jstNow.year, jstNow.month, jstNow.day);
+    final delta = (targetWeekday - jstNow.weekday) % 7;
+    day = day.add(Duration(days: delta));
+    var airingJst = DateTime.utc(day.year, day.month, day.day, h, m);
+    if (!airingJst.isAfter(jstNow)) {
+      airingJst = airingJst.add(const Duration(days: 7));
+    }
+    final airing = airingJst.subtract(const Duration(hours: 9)).toLocal();
+    return airing.difference(DateTime.now());
+  }
+
+  /// Next episode number, estimated from start date + weekly broadcast.
+  /// Null when the start date is unknown or the finale already aired.
+  int? _nextEpisode() {
+    final start = anime.airedFrom;
+    if (start == null || start.length < 10) return null;
+    try {
+      final startDate = DateTime.parse(start.substring(0, 10));
+      final now = DateTime.now();
+      // aired = weeks since start + 1, so next = weeks + 2
+      var next = now.isBefore(startDate)
+          ? 1
+          : now.difference(startDate).inDays ~/ 7 + 2;
+      final total = anime.numEpisodes;
+      if (total != null && next > total) return null;
+      return next > 0 ? next : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   static String _fmt(Duration d) {
@@ -157,6 +182,7 @@ class _ScheduleCard extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final countdown = _countdown();
+    final nextEp = _nextEpisode();
 
     return Card.filled(
       child: InkWell(
@@ -202,7 +228,9 @@ class _ScheduleCard extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(
                           countdown != null
-                              ? 'Ep in ${_fmt(countdown)}'
+                              ? (nextEp != null
+                                  ? 'Ep $nextEp in ${_fmt(countdown)}'
+                                  : 'Ep in ${_fmt(countdown)}')
                               : (anime.broadcastTime ?? 'Time TBA'),
                           style: textTheme.labelMedium?.copyWith(
                             color: scheme.primary,

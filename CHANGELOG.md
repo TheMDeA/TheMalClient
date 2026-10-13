@@ -2,6 +2,14 @@
 
 All notable changes to MALClient (Flutter rewrite) are documented here.
 
+## [1.2.4] - 2026-10-13
+
+- App renamed to MyAL (new name, same fox)
+- Detail airing countdown now shows the latest aired and upcoming episode ("Ep 2 aired • Ep 3 Fri 22:00 • in 3d 1h 14m")
+- Schedule rows now show the upcoming episode number ("Ep 3 in 5d 2h 35m")
+- Fixed schedule countdowns drifting by the timezone gap (MAL broadcast times are JST)
+- Fixed episode numbers never appearing on the detail page (start date was dropped from the detail data)
+
 ## [1.2.3] - 2026-10-13
 
 - Detail header redesigned: poster with title language switcher (TI/EN/JA), bookmark and info buttons, plus an info panel (rank, score, format, aired, popularity, studios, members)

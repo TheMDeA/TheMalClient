@@ -1,16 +1,7 @@
-# MALClient v1.2.3
+# MyAL v1.2.4
 
-- Detail header redesigned: poster with title language switcher (TI/EN/JA), bookmark and info buttons, plus an info panel (rank, score, format, aired, popularity, studios, members)
-- My List search: filter your list by title as you type
-- Posters now animate into the detail page (Hero transition)
-- Haptic feedback on episode steppers, filter chips, and the Anime/Manga toggle
-- Skeleton loading placeholders in My List and Discover
-- Staggered entrance animations on lists, grids, and rails
-- New page transitions (fade + slide) for detail, settings, news, and history
-- Parallax collapsing header on the detail page
-- Airing countdowns pulse gently each second
-- Fixed profile statistics showing 0 entries/days and manga stats always empty
-- Fixed profile picture not loading from MyAnimeList
-- Fixed TI/EN/JA title switcher not changing the title (alt titles were dropped)
-- Fixed countdown chip overlapping the tab bar
-- Characters, Staff, Reviews, News, and Statistics now use the Tenrai API (Jikan's public API was discontinued)
+- App renamed to MyAL (new name, same fox)
+- Detail airing countdown now shows the latest aired and upcoming episode ("Ep 2 aired • Ep 3 Fri 22:00 • in 3d 1h 14m")
+- Schedule rows now show the upcoming episode number ("Ep 3 in 5d 2h 35m")
+- Fixed schedule countdowns drifting by the timezone gap (MAL broadcast times are JST)
+- Fixed episode numbers never appearing on the detail page (start date was dropped from the detail data)
