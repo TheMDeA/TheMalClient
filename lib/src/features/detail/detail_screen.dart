@@ -1335,7 +1335,7 @@ class _ReviewsTab extends ConsumerWidget {
 }
 
 final _reviewsProvider = FutureProvider.family<List<Review>, int>((ref, id) {
-  return ref.watch(jikanRepositoryProvider).animeReviews(id);
+  return ref.watch(tenraiRepositoryProvider).animeReviews(id);
 });
 
 /// More Info tab: card-based detailed metadata like the classic app.
