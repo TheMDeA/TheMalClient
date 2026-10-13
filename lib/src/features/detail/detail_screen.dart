@@ -999,6 +999,7 @@ class _CharactersTab extends ConsumerWidget {
                       child: PosterImage(
                         url: c.imageUrl,
                         title: c.name,
+                        heroTag: 'character-${c.malId}',
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
@@ -1139,6 +1140,7 @@ class _StaffTab extends ConsumerWidget {
                         child: PosterImage(
                           url: s.imageUrl,
                           title: s.name,
+                          heroTag: 'staff-${s.malId}',
                           width: 48,
                           height: 68,
                           borderRadius: BorderRadius.circular(8),

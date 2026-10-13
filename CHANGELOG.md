@@ -11,6 +11,8 @@ All notable changes to MALClient (Flutter rewrite) are documented here.
 - Media tab gallery now works for manga too
 - Fixed About dialog crediting Jikan instead of Tenrai
 - Settings → Storage now actually clears the cached posters (it showed a fake confirmation before)
+- Character/staff photos now fly into their detail pages (Hero transition)
+- Bottom-nav tabs fade in softly when switching
 
 ## [1.2.4] - 2026-10-13
 
