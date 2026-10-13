@@ -78,33 +78,68 @@ class AuthRepository {
     );
   }
 
-  /// Options for MAL's token endpoint (form-encoded). Client authentication
-  /// uses MAL Scheme 2: `client_id` + `client_secret` in the request body
-  /// (see [tokenData] and [refresh]).
-  static Options get _tokenPostOptions => Options(
+  /// POSTs to MAL's token endpoint with the given client-auth scheme.
+  ///
+  /// - [useBasic] = false: MAL Scheme 2 — `client_secret` in the body
+  ///   (DailyAL-style).
+  /// - [useBasic] = true: MAL Scheme 1 — HTTP Basic with
+  ///   `client_id:client_secret` (no secret in the body, per the docs'
+  ///   Scheme 1 example).
+  Future<Response<Map<String, dynamic>>> _postToken(
+      Map<String, String> data, bool useBasic) {
+    final body = Map<String, String>.from(data);
+    Map<String, String>? headers;
+    if (useBasic) {
+      body.remove('client_secret');
+      headers = {
+        'Authorization':
+            'Basic ${base64.encode(utf8.encode('$malClientId:$malClientSecret'))}',
+      };
+    }
+    return _tokenDio.post<Map<String, dynamic>>(
+      malTokenUrl,
+      data: body,
+      options: Options(
         contentType: Headers.formUrlEncodedContentType,
-      );
+        headers: headers,
+      ),
+    );
+  }
+
+  static bool _isClientAuthFailed(DioException e) {
+    final data = e.response?.data;
+    if (data is! Map) return false;
+    if (data['error'] == 'invalid_client') return true;
+    final detail =
+        '${data['error_description'] ?? ''} ${data['message'] ?? ''}';
+    return detail.toLowerCase().contains('client authentication failed');
+  }
+
   /// Tries to refresh the access token. Returns false when there is no
   /// refresh token or the refresh failed (caller should log out).
   Future<bool> refresh() async {
     final refreshToken = await _storage.read(key: _kRefresh);
     if (refreshToken == null || refreshToken.isEmpty) return false;
-    try {
-      final res = await _tokenDio.post(
-        malTokenUrl,
-        data: {
+    for (final useBasic in [false, true]) {
+      try {
+        final res = await _postToken({
           'grant_type': 'refresh_token',
           'client_id': malClientId,
           'client_secret': malClientSecret,
           'refresh_token': refreshToken,
-        },
-        options: _tokenPostOptions,
-      );
-      await _saveTokens(res.data as Map<String, dynamic>);
-      return true;
-    } catch (_) {
-      return false;
+        }, useBasic);
+        await _saveTokens(res.data as Map<String, dynamic>);
+        return true;
+      } on DioException catch (e) {
+        final authFailed =
+            e.response?.statusCode == 401 && _isClientAuthFailed(e);
+        if (authFailed && !useBasic) continue; // retry with Scheme 1
+        return false;
+      } catch (_) {
+        return false;
+      }
     }
+    return false;
   }
 
   // ---------- PKCE login ----------
@@ -142,12 +177,32 @@ class AuthRepository {
   /// (MAL redirects to `malclient://oauth/`, with slash). So on
   /// `invalid_grant` we retry once with the alternate trailing-slash form
   /// before surfacing the error.
+  ///
+  /// Client authentication is tried as MAL Scheme 2 first (`client_secret`
+  /// in the body); if MAL answers 401 "Client authentication failed" we
+  /// retry once as Scheme 1 (HTTP Basic with the secret).
   Future<void> exchangeCode(String code) async {
     final verifier = await _storage.read(key: _kVerifier);
     if (verifier == null) {
       throw StateError('No PKCE verifier stored; restart login.');
     }
+    for (final useBasic in [false, true]) {
+      try {
+        await _exchangeWithScheme(code, verifier, useBasic);
+        return;
+      } on DioException catch (e) {
+        final authFailed =
+            e.response?.statusCode == 401 && _isClientAuthFailed(e);
+        if (authFailed && !useBasic) continue; // retry with Scheme 1
+        rethrow;
+      }
+    }
+  }
 
+  /// Single-scheme token exchange with the trailing-slash `redirect_uri`
+  /// retry and transient connection retries.
+  Future<void> _exchangeWithScheme(
+      String code, String verifier, bool useBasic) async {
     Map<String, String> tokenData(String redirectUri) => {
           'grant_type': 'authorization_code',
           'client_id': malClientId,
@@ -171,12 +226,8 @@ class AuthRepository {
     for (var r = 0; r < redirectForms.length; r++) {
       for (var i = 1;; i++) {
         try {
-          final res = await _tokenDio.post(
-            malTokenUrl,
-            data: tokenData(redirectForms[r]),
-            options:
-                _tokenPostOptions,
-          );
+          final res =
+              await _postToken(tokenData(redirectForms[r]), useBasic);
           await _storage.delete(key: _kVerifier);
           await setDemoMode(false);
           await _saveTokens(res.data as Map<String, dynamic>);
