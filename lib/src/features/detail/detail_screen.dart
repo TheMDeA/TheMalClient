@@ -130,6 +130,7 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
         children: [
           _DetailHeader(
             detail: d,
+            kind: _isAnime ? 'anime' : 'manga',
             titleLang: _titleLang,
             onTitleLangChanged: (v) =>
                 setState(() => _titleLang = v),
@@ -229,6 +230,7 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
 /// Detail header: poster on the left, info panel on the right (DailyAL style).
 class _DetailHeader extends StatelessWidget {
   final AnimeDetail detail;
+  final String kind;
   final int titleLang;
   final ValueChanged<int> onTitleLangChanged;
   final VoidCallback onInfoTap;
@@ -236,6 +238,7 @@ class _DetailHeader extends StatelessWidget {
 
   const _DetailHeader({
     required this.detail,
+    required this.kind,
     required this.titleLang,
     required this.onTitleLangChanged,
     required this.onInfoTap,
@@ -279,6 +282,7 @@ class _DetailHeader extends StatelessWidget {
                   width: 150,
                   height: 215,
                   borderRadius: BorderRadius.circular(12),
+                  heroTag: 'poster-$kind-${d.id}',
                 ),
                 // Title language switcher.
                 Positioned(
