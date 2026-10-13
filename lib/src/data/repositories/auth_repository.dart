@@ -129,39 +129,73 @@ class AuthRepository {
   }
 
   /// Exchanges the `code` from the `malclient://oauth` redirect for tokens.
+  ///
+  /// MAL compares `redirect_uri` strictly — a missing or extra trailing slash
+  /// vs. the value the authorization server recorded yields `invalid_grant`
+  /// (MAL redirects to `malclient://oauth/`, with slash). So on
+  /// `invalid_grant` we retry once with the alternate trailing-slash form
+  /// before surfacing the error.
   Future<void> exchangeCode(String code) async {
     final verifier = await _storage.read(key: _kVerifier);
     if (verifier == null) {
       throw StateError('No PKCE verifier stored; restart login.');
     }
+
+    Map<String, String> tokenData(String redirectUri) => {
+          'grant_type': 'authorization_code',
+          'client_id': malClientId,
+          'code': code,
+          'code_verifier': verifier,
+          'redirect_uri': redirectUri,
+        };
+
+    final redirectForms = <String>{
+      malRedirectUri,
+      malRedirectUri.endsWith('/')
+          ? malRedirectUri.substring(0, malRedirectUri.length - 1)
+          : '$malRedirectUri/',
+    }.toList();
+
     // The network can hiccup right as the browser hands control back;
     // retry transient connection failures before giving up.
     const attempts = 3;
-    for (var i = 1;; i++) {
-      try {
-        final res = await _tokenDio.post(
-          malTokenUrl,
-          data: {
-            'grant_type': 'authorization_code',
-            'client_id': malClientId,
-            'code': code,
-            'code_verifier': verifier,
-            'redirect_uri': malRedirectUri,
-          },
-          options: Options(contentType: Headers.formUrlEncodedContentType),
-        );
-        await _storage.delete(key: _kVerifier);
-        await setDemoMode(false);
-        await _saveTokens(res.data as Map<String, dynamic>);
-        return;
-      } on DioException catch (e) {
-        if (e.type == DioExceptionType.connectionError && i < attempts) {
-          await Future.delayed(Duration(seconds: i));
-          continue;
+    DioException? lastError;
+    for (var r = 0; r < redirectForms.length; r++) {
+      for (var i = 1;; i++) {
+        try {
+          final res = await _tokenDio.post(
+            malTokenUrl,
+            data: tokenData(redirectForms[r]),
+            options:
+                Options(contentType: Headers.formUrlEncodedContentType),
+          );
+          await _storage.delete(key: _kVerifier);
+          await setDemoMode(false);
+          await _saveTokens(res.data as Map<String, dynamic>);
+          return;
+        } on DioException catch (e) {
+          if (e.type == DioExceptionType.connectionError && i < attempts) {
+            await Future.delayed(Duration(seconds: i));
+            continue;
+          }
+          if (e.response?.statusCode == 400 &&
+              r == 0 &&
+              _isInvalidGrant(e)) {
+            // Possibly a redirect_uri strictness mismatch: retry once with
+            // the alternate trailing-slash form.
+            lastError = e;
+            break;
+          }
+          rethrow;
         }
-        rethrow;
       }
     }
+    throw lastError!;
+  }
+
+  static bool _isInvalidGrant(DioException e) {
+    final data = e.response?.data;
+    return data is Map && data['error'] == 'invalid_grant';
   }
 
   /// Human-readable explanation for auth failures (shown on the login page).

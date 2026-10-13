@@ -17,19 +17,28 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _busy = false;
 
+  /// The authorize URL of the login flow currently in flight, if any.
+  /// Re-tapping login while the Custom Tab is open re-launches *this* URL
+  /// instead of starting a new PKCE flow — otherwise the stored verifier
+  /// would be overwritten and the code from the first flow would fail with
+  /// invalid_grant.
+  Uri? _pendingAuthUrl;
+
   Future<void> _login() async {
     if (!hasRealClientId) {
       _showClientIdHelp();
       return;
     }
+    if (_busy) return; // a login flow is already in flight
     setState(() => _busy = true);
     try {
       final repo = ref.read(authRepositoryProvider);
-      final url = await repo.beginLogin();
+      _pendingAuthUrl ??= await repo.beginLogin();
       // In-app browser (Custom Tab): stays inside MALClient instead of
       // jumping to an external browser app. The malclient://oauth redirect
       // is still delivered back to the app when MAL finishes.
-      final launched = await launchUrl(url, mode: LaunchMode.inAppBrowserView);
+      final launched =
+          await launchUrl(_pendingAuthUrl!, mode: LaunchMode.inAppBrowserView);
       if (!launched && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not open the browser.')),
@@ -84,6 +93,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     // Surface them so a failed token exchange is diagnosable.
     ref.listen(authControllerProvider, (_, next) {
       if (next.hasError && mounted) {
+        // The in-flight flow failed: allow a brand-new PKCE flow next tap.
+        _pendingAuthUrl = null;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content:
