@@ -350,6 +350,7 @@ class _DetailHeader extends StatelessWidget {
     final d = detail;
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final inList = d.myListStatus != null;
 
     Widget infoRow(String label, String value) => Padding(
       padding: const EdgeInsets.only(bottom: 6),
@@ -448,12 +449,16 @@ class _DetailHeader extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            icon: const Icon(
-                              Icons.bookmark_add,
+                            icon: Icon(
+                              inList
+                                  ? Icons.bookmark
+                                  : Icons.bookmark_add,
                               color: Colors.white,
                               size: 20,
                             ),
-                            tooltip: 'Add to list',
+                            tooltip: inList
+                                ? 'Edit list entry'
+                                : 'Add to list',
                             onPressed: onBookmarkTap,
                             visualDensity: VisualDensity.compact,
                           ),
@@ -1283,29 +1288,70 @@ class _MediaTab extends ConsumerWidget {
   void _openViewer(BuildContext context, List<String> urls, int index) {
     showDialog(
       context: context,
-      builder: (ctx) => Dialog.fullscreen(
-        backgroundColor: Colors.black,
-        child: Stack(
-          children: [
-            PageView.builder(
-              controller: PageController(initialPage: index),
-              itemCount: urls.length,
-              itemBuilder: (_, i) => InteractiveViewer(
-                child: Center(
-                  child: Image.network(urls[i], fit: BoxFit.contain),
+      builder: (ctx) => _PictureViewer(urls: urls, initialIndex: index),
+    );
+  }
+}
+
+/// Fullscreen swipeable picture viewer. Owns its [PageController] so it
+/// is disposed when the dialog closes.
+class _PictureViewer extends StatefulWidget {
+  final List<String> urls;
+  final int initialIndex;
+
+  const _PictureViewer({required this.urls, required this.initialIndex});
+
+  @override
+  State<_PictureViewer> createState() => _PictureViewerState();
+}
+
+class _PictureViewerState extends State<_PictureViewer> {
+  late final PageController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog.fullscreen(
+      backgroundColor: Colors.black,
+      child: Stack(
+        children: [
+          PageView.builder(
+            controller: _controller,
+            itemCount: widget.urls.length,
+            itemBuilder: (_, i) => InteractiveViewer(
+              child: Center(
+                child: Image.network(
+                  widget.urls[i],
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) => const Icon(
+                    Icons.broken_image_outlined,
+                    color: Colors.white54,
+                    size: 48,
+                  ),
                 ),
               ),
             ),
-            Positioned(
-              top: MediaQuery.of(ctx).padding.top + 8,
-              right: 8,
-              child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white),
-                onPressed: () => Navigator.pop(ctx),
-              ),
+          ),
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            right: 8,
+            child: IconButton(
+              icon: const Icon(Icons.close, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
