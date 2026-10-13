@@ -7,6 +7,7 @@ import 'package:malclient/src/data/models/media.dart';
 import 'package:malclient/src/widgets/poster_card.dart';
 import 'package:malclient/src/widgets/section_widgets.dart';
 import 'package:malclient/src/widgets/skeleton.dart';
+import 'package:malclient/src/widgets/entrance.dart';
 
 /// Discover tab: M3 SearchBar, genre chips, and Top Anime / Top Manga /
 /// Seasonal grids. `?tab=top|manga|seasonal` and `?focusSearch=true` are
@@ -102,9 +103,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
                   Tab(text: 'Seasonal'),
                 ],
               ),
-            Expanded(
-              child: _query.isEmpty ? _tabViews() : _searchResults(),
-            ),
+            Expanded(child: _query.isEmpty ? _tabViews() : _searchResults()),
           ],
         ),
       ),
@@ -125,7 +124,8 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
             child: FilterChip(
               label: Text(g),
               selected: _genre == g,
-              onSelected: (_) => setState(() => _genre = _genre == g ? null : g),
+              onSelected: (_) =>
+                  setState(() => _genre = _genre == g ? null : g),
             ),
           );
         },
@@ -153,15 +153,17 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
     return value.when(
       data: (items) => _posterGrid(
         _applyGenre(items)
-            .map((a) => PosterCard(
-                  imageUrl: a.imageUrl,
-                  title: a.title,
-                  mean: a.mean,
-                  members: a.numListUsers,
-                  rank: a.rank,
-                  width: double.infinity,
-                  onTap: () => context.push('/detail/anime/${a.id}'),
-                ))
+            .map(
+              (a) => PosterCard(
+                imageUrl: a.imageUrl,
+                title: a.title,
+                mean: a.mean,
+                members: a.numListUsers,
+                rank: a.rank,
+                width: double.infinity,
+                onTap: () => context.push('/detail/anime/${a.id}'),
+              ),
+            )
             .toList(),
       ),
       loading: () => const SkeletonPosterGrid(),
@@ -176,15 +178,17 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
     return value.when(
       data: (items) => _posterGrid(
         items
-            .map((m) => PosterCard(
-                  imageUrl: m.imageUrl,
-                  title: m.title,
-                  mean: m.mean,
-                  members: m.numListUsers,
-                  rank: m.rank,
-                  width: double.infinity,
-                  onTap: () => context.push('/detail/manga/${m.id}'),
-                ))
+            .map(
+              (m) => PosterCard(
+                imageUrl: m.imageUrl,
+                title: m.title,
+                mean: m.mean,
+                members: m.numListUsers,
+                rank: m.rank,
+                width: double.infinity,
+                onTap: () => context.push('/detail/manga/${m.id}'),
+              ),
+            )
             .toList(),
       ),
       loading: () => const SkeletonPosterGrid(),
@@ -208,7 +212,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
         mainAxisSpacing: 16,
       ),
       itemCount: cards.length,
-      itemBuilder: (_, i) => cards[i],
+      itemBuilder: (_, i) => Entrance(index: i, child: cards[i]),
     );
   }
 
@@ -262,10 +266,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
         Expanded(
           child: TabBarView(
             controller: _searchTabs,
-            children: [
-              _animeSearchGrid(),
-              _mangaSearchGrid(),
-            ],
+            children: [_animeSearchGrid(), _mangaSearchGrid()],
           ),
         ),
       ],
@@ -274,23 +275,27 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
 
   Widget _animeSearchGrid() {
     final f = _animeFilters;
-    final value = ref.watch(_animeSearchProvider((
-      q: _query,
-      type: f.type,
-      status: f.status,
-      rating: f.rating,
-      genres: f.genreIdsParam,
-    )));
+    final value = ref.watch(
+      _animeSearchProvider((
+        q: _query,
+        type: f.type,
+        status: f.status,
+        rating: f.rating,
+        genres: f.genreIdsParam,
+      )),
+    );
     return value.when(
       data: (items) => _posterGrid(
         items
-            .map((a) => PosterCard(
-                  imageUrl: a.imageUrl,
-                  title: a.title,
-                  mean: a.mean,
-                  width: double.infinity,
-                  onTap: () => context.push('/detail/anime/${a.id}'),
-                ))
+            .map(
+              (a) => PosterCard(
+                imageUrl: a.imageUrl,
+                title: a.title,
+                mean: a.mean,
+                width: double.infinity,
+                onTap: () => context.push('/detail/anime/${a.id}'),
+              ),
+            )
             .toList(),
       ),
       loading: () => const SkeletonPosterGrid(),
@@ -300,22 +305,26 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
 
   Widget _mangaSearchGrid() {
     final f = _mangaFilters;
-    final value = ref.watch(_mangaSearchProvider((
-      q: _query,
-      type: f.type,
-      status: f.status,
-      genres: f.genreIdsParam,
-    )));
+    final value = ref.watch(
+      _mangaSearchProvider((
+        q: _query,
+        type: f.type,
+        status: f.status,
+        genres: f.genreIdsParam,
+      )),
+    );
     return value.when(
       data: (items) => _posterGrid(
         items
-            .map((m) => PosterCard(
-                  imageUrl: m.imageUrl,
-                  title: m.title,
-                  mean: m.mean,
-                  width: double.infinity,
-                  onTap: () => context.push('/detail/manga/${m.id}'),
-                ))
+            .map(
+              (m) => PosterCard(
+                imageUrl: m.imageUrl,
+                title: m.title,
+                mean: m.mean,
+                width: double.infinity,
+                onTap: () => context.push('/detail/manga/${m.id}'),
+              ),
+            )
             .toList(),
       ),
       loading: () => const SkeletonPosterGrid(),
@@ -353,27 +362,31 @@ class _SearchFilters {
   }
 }
 
-final _animeSearchProvider = FutureProvider.family<List<AnimeSummary>,
-    ({String q, String? type, String? status, String? rating, String? genres})>(
-    (ref, p) {
-  return ref.watch(mediaRepositoryProvider).searchAnime(
-        p.q,
-        type: p.type,
-        status: p.status,
-        rating: p.rating,
-        genres: p.genres,
-      );
-});
+final _animeSearchProvider =
+    FutureProvider.family<
+      List<AnimeSummary>,
+      ({String q, String? type, String? status, String? rating, String? genres})
+    >((ref, p) {
+      return ref
+          .watch(mediaRepositoryProvider)
+          .searchAnime(
+            p.q,
+            type: p.type,
+            status: p.status,
+            rating: p.rating,
+            genres: p.genres,
+          );
+    });
 
-final _mangaSearchProvider = FutureProvider.family<List<MangaSummary>,
-    ({String q, String? type, String? status, String? genres})>((ref, p) {
-  return ref.watch(mediaRepositoryProvider).searchManga(
-        p.q,
-        type: p.type,
-        status: p.status,
-        genres: p.genres,
-      );
-});
+final _mangaSearchProvider =
+    FutureProvider.family<
+      List<MangaSummary>,
+      ({String q, String? type, String? status, String? genres})
+    >((ref, p) {
+      return ref
+          .watch(mediaRepositoryProvider)
+          .searchManga(p.q, type: p.type, status: p.status, genres: p.genres);
+    });
 
 // ---------- filter sheet ----------
 
@@ -445,8 +458,9 @@ class _SearchFilterSheetState extends State<_SearchFilterSheet> {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     return Padding(
-      padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(context).size.height * 0.85,
@@ -469,8 +483,9 @@ class _SearchFilterSheetState extends State<_SearchFilterSheet> {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   'Search filters',
-                  style: textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                  style: textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
@@ -503,8 +518,9 @@ class _SearchFilterSheetState extends State<_SearchFilterSheet> {
                     ),
                   Text(
                     'Genres',
-                    style: textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
@@ -574,8 +590,7 @@ class _SearchFilterSheetState extends State<_SearchFilterSheet> {
       children: [
         Text(
           title,
-          style:
-              textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         Wrap(
