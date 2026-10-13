@@ -609,14 +609,35 @@ class _CountdownChipState extends State<_CountdownChip> {
     );
   }
 
-  /// "Ep 5 • Airs Friday at 23:00 • in 2d 4h 12m"
+  /// "Ep 2 aired • Ep 3 Fri 22:00 • in 3d 1h 14m"
   String _buildLabel(AnimeDetail d) {
+    final aired = _latestAiredEpisode(d);
+    int? next;
+    if (aired != null) {
+      next = aired + 1;
+      final total = d.numEpisodes;
+      if (total != null && next > total) next = null; // finale already aired
+    }
+
+    final airTime = _shortAirLabel(d); // "Fri 22:00", local time
+    String epPart;
+    if (aired != null && next != null) {
+      epPart = 'Ep $aired aired • Ep $next';
+    } else if (next != null) {
+      epPart = 'Ep $next';
+    } else if (aired != null) {
+      epPart = 'Ep $aired aired';
+    } else {
+      epPart = '';
+    }
+
     final parts = <String>[];
-    final ep = _currentEpisode(d);
-    if (ep != null) parts.add('Ep $ep');
-    final localAir = _localAirLabel(d);
-    if (localAir != null) {
-      parts.add(localAir);
+    if (epPart.isNotEmpty && airTime != null) {
+      parts.add('$epPart $airTime');
+    } else if (epPart.isNotEmpty) {
+      parts.add(epPart);
+    } else if (airTime != null) {
+      parts.add('Airs $airTime');
     } else {
       parts.add('Currently airing');
     }
@@ -625,27 +646,27 @@ class _CountdownChipState extends State<_CountdownChip> {
     return parts.join(' • ');
   }
 
-  /// "Airs Friday at 22:00" in the phone's local timezone (broadcast is JST).
-  String? _localAirLabel(AnimeDetail d) {
+  /// "Fri 22:00" in the phone's local timezone (broadcast is JST).
+  String? _shortAirLabel(AnimeDetail d) {
     final next = _nextAirDate(d);
     if (next == null) return null;
     final day = switch (next.weekday) {
-      DateTime.monday => 'Monday',
-      DateTime.tuesday => 'Tuesday',
-      DateTime.wednesday => 'Wednesday',
-      DateTime.thursday => 'Thursday',
-      DateTime.friday => 'Friday',
-      DateTime.saturday => 'Saturday',
-      DateTime.sunday => 'Sunday',
+      DateTime.monday => 'Mon',
+      DateTime.tuesday => 'Tue',
+      DateTime.wednesday => 'Wed',
+      DateTime.thursday => 'Thu',
+      DateTime.friday => 'Fri',
+      DateTime.saturday => 'Sat',
+      DateTime.sunday => 'Sun',
       _ => '',
     };
     final time =
         '${next.hour.toString().padLeft(2, '0')}:${next.minute.toString().padLeft(2, '0')}';
-    return 'Airs $day at $time';
+    return '$day $time';
   }
 
   /// Estimates the latest aired episode from start date + weekly broadcast.
-  int? _currentEpisode(AnimeDetail d) {
+  int? _latestAiredEpisode(AnimeDetail d) {
     final start = d.airedFrom;
     if (start == null || start.length < 10) return null;
     try {
