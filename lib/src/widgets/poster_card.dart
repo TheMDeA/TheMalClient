@@ -9,6 +9,7 @@ class PosterImage extends StatelessWidget {
   final double? width;
   final double? height;
   final BorderRadius borderRadius;
+  final String? heroTag;
 
   const PosterImage({
     super.key,
@@ -17,6 +18,7 @@ class PosterImage extends StatelessWidget {
     this.width,
     this.height,
     this.borderRadius = const BorderRadius.all(Radius.circular(12)),
+    this.heroTag,
   });
 
   @override
@@ -50,19 +52,27 @@ class PosterImage extends StatelessWidget {
       ),
     );
 
-    if (url == null || url!.isEmpty) return fallback;
+    if (url == null || url!.isEmpty) return _wrapHero(fallback);
 
-    return ClipRRect(
-      borderRadius: borderRadius,
-      child: CachedNetworkImage(
-        imageUrl: url!,
-        width: width,
-        height: height,
-        fit: BoxFit.cover,
-        placeholder: (_, _) => fallback,
-        errorWidget: (_, _, _) => fallback,
+    return _wrapHero(
+      ClipRRect(
+        borderRadius: borderRadius,
+        child: CachedNetworkImage(
+          imageUrl: url!,
+          width: width,
+          height: height,
+          fit: BoxFit.cover,
+          placeholder: (_, _) => fallback,
+          errorWidget: (_, _, _) => fallback,
+        ),
       ),
     );
+  }
+
+  Widget _wrapHero(Widget child) {
+    final tag = heroTag;
+    if (tag == null) return child;
+    return Hero(tag: tag, child: child);
   }
 }
 
@@ -139,6 +149,7 @@ class PosterCard extends StatelessWidget {
   final int? rank;
   final double width;
   final VoidCallback? onTap;
+  final String? heroTag;
 
   const PosterCard({
     super.key,
@@ -149,6 +160,7 @@ class PosterCard extends StatelessWidget {
     this.rank,
     this.width = 140,
     this.onTap,
+    this.heroTag,
   });
 
   @override
@@ -171,6 +183,7 @@ class PosterCard extends StatelessWidget {
                     child: PosterImage(
                       url: imageUrl,
                       title: title,
+                      heroTag: heroTag,
                     ),
                   ),
                   Positioned(
