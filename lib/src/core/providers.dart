@@ -203,6 +203,38 @@ class AccentNotifier extends Notifier<AppAccent> {
   }
 }
 
+/// Material You dynamic colors: when on (and the device supports it),
+/// the system wallpaper colors replace the accent presets entirely.
+final dynamicColorProvider =
+    NotifierProvider<DynamicColorNotifier, bool>(DynamicColorNotifier.new);
+
+class DynamicColorNotifier extends Notifier<bool> {
+  static const _key = 'dynamic_color';
+
+  @override
+  bool build() =>
+      ref.watch(sharedPrefsProvider).getBool(_key) ?? false;
+
+  Future<void> set(bool value) async {
+    state = value;
+    await ref.read(sharedPrefsProvider).setBool(_key, value);
+  }
+}
+
+/// Whether the device actually provides dynamic color schemes (Android 12+).
+/// Written by the [DynamicColorBuilder] in main.dart; the settings UI uses
+/// it to enable/disable the toggle.
+final dynamicColorAvailableProvider =
+    NotifierProvider<DynamicColorAvailableNotifier, bool>(
+        DynamicColorAvailableNotifier.new);
+
+class DynamicColorAvailableNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  set available(bool value) => state = value;
+}
+
 /// App font: 'system' for the default, otherwise a Google Fonts family name.
 final appFontProvider =
     NotifierProvider<AppFontNotifier, String>(AppFontNotifier.new);

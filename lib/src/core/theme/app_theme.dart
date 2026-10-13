@@ -195,15 +195,33 @@ Color appSurface(AppAccent accent, Brightness brightness,
 ///
 /// [amoled] switches dark surfaces to pure black; [fontFamily] (a Google
 /// Fonts family name, or null for the system font) restyles all text.
+///
+/// [dynamicScheme] is a Material You scheme from the OS (Android 12+). When
+/// provided it replaces the warm custom scheme entirely; [amoled] still
+/// forces pure-black surfaces on top of it.
 ThemeData buildAppTheme(
   Brightness brightness,
   AppAccent accent, {
   bool amoled = false,
   String? fontFamily,
+  ColorScheme? dynamicScheme,
 }) {
-  final scheme = brightness == Brightness.dark
+  var scheme = brightness == Brightness.dark
       ? _darkScheme(accent, amoled: amoled)
       : _lightScheme(accent);
+  if (dynamicScheme != null) {
+    scheme = dynamicScheme;
+    if (amoled && brightness == Brightness.dark) {
+      scheme = scheme.copyWith(
+        surface: Colors.black,
+        surfaceContainerLowest: Colors.black,
+        surfaceContainerLow: const Color(0xFF0A0A0A),
+        surfaceContainer: const Color(0xFF111111),
+        surfaceContainerHigh: const Color(0xFF181818),
+        surfaceContainerHighest: const Color(0xFF1F1F1F),
+      );
+    }
+  }
   var theme = ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
