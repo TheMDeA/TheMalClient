@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:malclient/src/core/providers.dart';
 import 'package:malclient/src/data/models/media.dart';
+import 'package:malclient/src/features/mylist/filter_sheet.dart';
+import 'package:malclient/src/features/mylist/list_filter.dart';
 import 'package:malclient/src/widgets/poster_card.dart';
 import 'package:malclient/src/widgets/section_widgets.dart';
 
@@ -27,6 +29,128 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
       ? AnimeListStatuses.label(s)
       : MangaListStatuses.label(s);
 
+  List<AnimeListEntry> _applyAnimeFilterSort(
+      List<AnimeListEntry> items, ListFilterState f) {
+    var out = items;
+    if (f.animeTypes.isNotEmpty) {
+      out = out
+          .where((e) => f.animeTypes.contains(e.anime.mediaType))
+          .toList();
+    }
+    if (f.animeStatuses.isNotEmpty) {
+      out = out
+          .where((e) => f.animeStatuses.contains(e.anime.status))
+          .toList();
+    }
+    if (f.ratings.isNotEmpty) {
+      out =
+          out.where((e) => f.ratings.contains(e.anime.rating)).toList();
+    }
+    if (f.genresInclude.isNotEmpty) {
+      out = out
+          .where((e) =>
+              f.genresInclude.any((g) => e.anime.genres.contains(g)))
+          .toList();
+    }
+    if (f.genresExclude.isNotEmpty) {
+      out = out
+          .where((e) =>
+              !f.genresExclude.any((g) => e.anime.genres.contains(g)))
+          .toList();
+    }
+    final sorted = List<AnimeListEntry>.of(out);
+    sorted.sort((a, b) {
+      final int cmp;
+      switch (f.sortBy) {
+        case 'title':
+          cmp = a.anime.title
+              .toLowerCase()
+              .compareTo(b.anime.title.toLowerCase());
+        case 'list_score':
+          cmp = a.listStatus.score.compareTo(b.listStatus.score);
+        case 'start_date':
+          cmp = (a.listStatus.startDate ?? '')
+              .compareTo(b.listStatus.startDate ?? '');
+        case 'popularity':
+          cmp = (a.anime.popularity ?? 999999)
+              .compareTo(b.anime.popularity ?? 999999);
+        case 'list_users':
+          cmp = (a.anime.numListUsers ?? 0)
+              .compareTo(b.anime.numListUsers ?? 0);
+        case 'scoring_users':
+          cmp = (a.anime.numScoringUsers ?? 0)
+              .compareTo(b.anime.numScoringUsers ?? 0);
+        case 'score':
+          cmp = (a.anime.mean ?? 0).compareTo(b.anime.mean ?? 0);
+        case 'updated_at':
+        default:
+          cmp = (a.listStatus.updatedAt ?? '')
+              .compareTo(b.listStatus.updatedAt ?? '');
+      }
+      return f.sortDesc ? -cmp : cmp;
+    });
+    return sorted;
+  }
+
+  List<MangaListEntry> _applyMangaFilterSort(
+      List<MangaListEntry> items, ListFilterState f) {
+    var out = items;
+    if (f.mangaTypes.isNotEmpty) {
+      out = out
+          .where((e) => f.mangaTypes.contains(e.manga.mediaType))
+          .toList();
+    }
+    if (f.mangaStatuses.isNotEmpty) {
+      out = out
+          .where((e) => f.mangaStatuses.contains(e.manga.status))
+          .toList();
+    }
+    if (f.genresInclude.isNotEmpty) {
+      out = out
+          .where((e) =>
+              f.genresInclude.any((g) => e.manga.genres.contains(g)))
+          .toList();
+    }
+    if (f.genresExclude.isNotEmpty) {
+      out = out
+          .where((e) =>
+              !f.genresExclude.any((g) => e.manga.genres.contains(g)))
+          .toList();
+    }
+    final sorted = List<MangaListEntry>.of(out);
+    sorted.sort((a, b) {
+      final int cmp;
+      switch (f.sortBy) {
+        case 'title':
+          cmp = a.manga.title
+              .toLowerCase()
+              .compareTo(b.manga.title.toLowerCase());
+        case 'list_score':
+          cmp = a.listStatus.score.compareTo(b.listStatus.score);
+        case 'start_date':
+          cmp = (a.listStatus.startDate ?? '')
+              .compareTo(b.listStatus.startDate ?? '');
+        case 'popularity':
+          cmp = (a.manga.popularity ?? 999999)
+              .compareTo(b.manga.popularity ?? 999999);
+        case 'list_users':
+          cmp = (a.manga.numListUsers ?? 0)
+              .compareTo(b.manga.numListUsers ?? 0);
+        case 'scoring_users':
+          cmp = (a.manga.numScoringUsers ?? 0)
+              .compareTo(b.manga.numScoringUsers ?? 0);
+        case 'score':
+          cmp = (a.manga.mean ?? 0).compareTo(b.manga.mean ?? 0);
+        case 'updated_at':
+        default:
+          cmp = (a.listStatus.updatedAt ?? '')
+              .compareTo(b.listStatus.updatedAt ?? '');
+      }
+      return f.sortDesc ? -cmp : cmp;
+    });
+    return sorted;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -36,12 +160,35 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Text(
-                'My List',
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineMedium
-                    ?.copyWith(fontWeight: FontWeight.bold),
+              child: Row(
+                children: [
+                  Text(
+                    'My List',
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineMedium
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const Spacer(),
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final f = ref.watch(listFilterProvider);
+                      final active = f.hasActiveFilters || !f.isDefaultSort;
+                      return IconButton(
+                        icon: Badge(
+                          isLabelVisible: active,
+                          child: const Icon(Icons.filter_list),
+                        ),
+                        tooltip: 'Sort & filter',
+                        onPressed: () => showListFilterSheet(
+                          context,
+                          ref,
+                          kind: _kind,
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
             Padding(
@@ -109,17 +256,21 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
 
   Widget _animeList() {
     final value = ref.watch(myAnimeListProvider(_status));
+    final filter = ref.watch(listFilterProvider);
     return value.when(
       data: (items) {
-        if (items.isEmpty) return const Center(child: Text('No entries.'));
+        final shown = _applyAnimeFilterSort(items, filter);
+        if (shown.isEmpty) {
+          return const Center(child: Text('No entries match.'));
+        }
         return RefreshIndicator(
           onRefresh: () async => invalidateMyLists(ref),
           child: ListView.separated(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-            itemCount: items.length,
+            itemCount: shown.length,
             separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (_, i) {
-              final e = items[i];
+              final e = shown[i];
               return _ListRow(
                 imageUrl: e.anime.imageUrl,
                 title: e.anime.title,
@@ -128,6 +279,7 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
                 progress: e.listStatus.progress,
                 total: e.anime.numEpisodes,
                 unit: 'ep',
+                compact: filter.compactRows,
                 onTap: () => context.push('/detail/anime/${e.anime.id}'),
                 onEdit: () => showEditEntrySheet(
                   context,
@@ -154,17 +306,21 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
 
   Widget _mangaList() {
     final value = ref.watch(myMangaListProvider(_status));
+    final filter = ref.watch(listFilterProvider);
     return value.when(
       data: (items) {
-        if (items.isEmpty) return const Center(child: Text('No entries.'));
+        final shown = _applyMangaFilterSort(items, filter);
+        if (shown.isEmpty) {
+          return const Center(child: Text('No entries match.'));
+        }
         return RefreshIndicator(
           onRefresh: () async => invalidateMyLists(ref),
           child: ListView.separated(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-            itemCount: items.length,
+            itemCount: shown.length,
             separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (_, i) {
-              final e = items[i];
+              final e = shown[i];
               return _ListRow(
                 imageUrl: e.manga.imageUrl,
                 title: e.manga.title,
@@ -173,6 +329,7 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
                 progress: e.listStatus.progress,
                 total: e.manga.numChapters,
                 unit: 'ch',
+                compact: filter.compactRows,
                 onTap: () => context.push('/detail/manga/${e.manga.id}'),
                 onEdit: () => showEditEntrySheet(
                   context,
@@ -238,6 +395,7 @@ class _ListRow extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onEdit;
   final void Function(int delta) onStep;
+  final bool compact;
 
   const _ListRow({
     required this.imageUrl,
@@ -249,6 +407,7 @@ class _ListRow extends StatelessWidget {
     required this.onTap,
     required this.onEdit,
     required this.onStep,
+    this.compact = false,
   });
 
   @override
@@ -260,10 +419,14 @@ class _ListRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(10),
+          padding: EdgeInsets.all(compact ? 6 : 10),
           child: Row(
             children: [
-              PosterImage(url: imageUrl, title: title, width: 52, height: 76),
+              PosterImage(
+                  url: imageUrl,
+                  title: title,
+                  width: compact ? 36 : 52,
+                  height: compact ? 52 : 76),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
