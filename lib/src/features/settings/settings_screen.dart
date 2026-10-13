@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:malclient/src/core/providers.dart';
@@ -31,13 +32,7 @@ class SettingsScreen extends ConsumerWidget {
             icon: Icons.storage_outlined,
             title: 'Storage',
             subtitle: 'Clear cached posters and data.',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content:
-                        Text('Image cache will refresh on next load.')),
-              );
-            },
+            onTap: () => _clearCache(context),
           ),
           _MenuRow(
             icon: Icons.info_outlined,
@@ -79,6 +74,48 @@ class SettingsScreen extends ConsumerWidget {
     if (ok == true) {
       await ref.read(authControllerProvider.notifier).logout();
       if (context.mounted) context.go('/login');
+    }
+  }
+
+  /// Actually empties the poster disk cache + in-memory image cache,
+  /// after confirmation.
+  Future<void> _clearCache(BuildContext context) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clear cache?'),
+        content: const Text(
+          'This removes downloaded posters and thumbnails. '
+          'They will be re-downloaded as you browse.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    try {
+      await DefaultCacheManager().emptyCache();
+      PaintingBinding.instance.imageCache.clear();
+      PaintingBinding.instance.imageCache.clearLiveImages();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cache cleared.')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not clear cache: $e')),
+        );
+      }
     }
   }
 }
