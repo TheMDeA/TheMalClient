@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:malclient/src/core/providers.dart';
 import 'package:malclient/src/data/models/media.dart';
 import 'package:malclient/src/features/detail/detail_screen.dart';
+import 'package:malclient/src/features/detail/person_detail_screen.dart';
 import 'package:malclient/src/features/discover/discover_screen.dart';
 import 'package:malclient/src/features/history/history_screen.dart';
 import 'package:malclient/src/features/home/home_screen.dart';
@@ -172,6 +173,26 @@ final routerProvider = Provider<GoRouter>((ref) {
           state,
           DetailScreen(
             kind: ListKind.manga,
+            id: int.parse(state.pathParameters['id']!),
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/detail/character/:id',
+        pageBuilder: (context, state) => _fadeSlidePage(
+          context,
+          state,
+          CharacterDetailScreen(
+            id: int.parse(state.pathParameters['id']!),
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/detail/staff/:id',
+        pageBuilder: (context, state) => _fadeSlidePage(
+          context,
+          state,
+          StaffDetailScreen(
             id: int.parse(state.pathParameters['id']!),
           ),
         ),

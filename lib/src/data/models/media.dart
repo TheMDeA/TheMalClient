@@ -712,3 +712,143 @@ class AnimeStatistics {
     );
   }
 }
+
+/// Extracts `images.jpg.image_url` from a Jikan-style node, or null.
+String? _jpgImage(dynamic node) {
+  if (node is! Map) return null;
+  final images = node['images'];
+  if (images is! Map) return null;
+  final jpg = images['jpg'];
+  if (jpg is! Map) return null;
+  return jpg['image_url'] as String?;
+}
+
+/// Full character details (Tenrai `/characters/{id}`).
+class CharacterDetail {
+  final int malId;
+  final String name;
+  final String? nameKanji;
+  final String? imageUrl;
+  final List<String> nicknames;
+  final int favorites;
+  final String? about;
+
+  const CharacterDetail({
+    required this.malId,
+    required this.name,
+    this.nameKanji,
+    this.imageUrl,
+    this.nicknames = const [],
+    this.favorites = 0,
+    this.about,
+  });
+
+  factory CharacterDetail.fromJikan(Map<String, dynamic> json) {
+    return CharacterDetail(
+      malId: (json['mal_id'] as num?)?.toInt() ?? 0,
+      name: (json['name'] ?? '') as String,
+      nameKanji: json['name_kanji'] as String?,
+      imageUrl: _jpgImage(json),
+      nicknames: [
+        if (json['nicknames'] is List)
+          for (final n in (json['nicknames'] as List))
+            if (n is String && n.isNotEmpty) n,
+      ],
+      favorites: (json['favorites'] as num?)?.toInt() ?? 0,
+      about: json['about'] as String?,
+    );
+  }
+}
+
+/// An anime a character appears in (Tenrai `/characters/{id}/anime`).
+class CharacterAnime {
+  final int malId;
+  final String title;
+  final String? imageUrl;
+  final String role; // "Main" or "Supporting"
+
+  const CharacterAnime({
+    required this.malId,
+    required this.title,
+    this.imageUrl,
+    this.role = '',
+  });
+
+  factory CharacterAnime.fromJikan(Map<String, dynamic> json) {
+    final anime = json['anime'];
+    return CharacterAnime(
+      malId: (anime?['mal_id'] as num?)?.toInt() ?? 0,
+      title: (anime?['title'] ?? '') as String,
+      imageUrl: _jpgImage(anime),
+      role: (json['role'] ?? '') as String,
+    );
+  }
+}
+
+/// Full staff/person details (Tenrai `/people/{id}`).
+class StaffDetail {
+  final int malId;
+  final String name;
+  final String? givenName;
+  final String? familyName;
+  final String? imageUrl;
+  final List<String> alternateNames;
+  final String? birthday; // ISO date
+  final int favorites;
+  final String? about;
+
+  const StaffDetail({
+    required this.malId,
+    required this.name,
+    this.givenName,
+    this.familyName,
+    this.imageUrl,
+    this.alternateNames = const [],
+    this.birthday,
+    this.favorites = 0,
+    this.about,
+  });
+
+  factory StaffDetail.fromJikan(Map<String, dynamic> json) {
+    return StaffDetail(
+      malId: (json['mal_id'] as num?)?.toInt() ?? 0,
+      name: (json['name'] ?? '') as String,
+      givenName: json['given_name'] as String?,
+      familyName: json['family_name'] as String?,
+      imageUrl: _jpgImage(json),
+      alternateNames: [
+        if (json['alternate_names'] is List)
+          for (final n in (json['alternate_names'] as List))
+            if (n is String && n.isNotEmpty) n,
+      ],
+      birthday: (json['birthday'] as String?)?.substring(0, 10),
+      favorites: (json['favorites'] as num?)?.toInt() ?? 0,
+      about: json['about'] as String?,
+    );
+  }
+}
+
+/// An anime a staff member worked on (Tenrai `/people/{id}/anime`).
+class StaffAnime {
+  final int malId;
+  final String title;
+  final String? imageUrl;
+  final String position;
+
+  const StaffAnime({
+    required this.malId,
+    required this.title,
+    this.imageUrl,
+    this.position = '',
+  });
+
+  factory StaffAnime.fromJikan(Map<String, dynamic> json) {
+    final anime = json['anime'];
+    return StaffAnime(
+      malId: (anime?['mal_id'] as num?)?.toInt() ?? 0,
+      title: (anime?['title'] ?? '') as String,
+      imageUrl: _jpgImage(anime),
+      position: (json['position'] ?? '') as String,
+    );
+  }
+}

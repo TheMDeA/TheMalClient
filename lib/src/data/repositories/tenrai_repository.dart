@@ -148,10 +148,65 @@ class TenraiRepository {
     }
   }
 
+  /// Full character details (`/characters/{id}`).
+  /// Returns null on network/API errors.
+  Future<CharacterDetail?> characterDetail(int malId) async {
+    try {
+      final res = await _get('/characters/$malId');
+      final data = (res.data as Map<String, dynamic>)['data'];
+      if (data is! Map<String, dynamic>) return null;
+      return CharacterDetail.fromJikan(data);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Anime a character appears in (`/characters/{id}/anime`).
+  Future<List<CharacterAnime>> characterAnime(int malId) async {
+    try {
+      final res = await _get('/characters/$malId/anime');
+      final data = (res.data as Map<String, dynamic>)['data'];
+      if (data is! List) return const [];
+      return [
+        for (final e in data)
+          if (e is Map<String, dynamic>) CharacterAnime.fromJikan(e),
+      ];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Full staff/person details (`/people/{id}`).
+  /// Returns null on network/API errors.
+  Future<StaffDetail?> staffDetail(int malId) async {
+    try {
+      final res = await _get('/people/$malId');
+      final data = (res.data as Map<String, dynamic>)['data'];
+      if (data is! Map<String, dynamic>) return null;
+      return StaffDetail.fromJikan(data);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Anime a staff member worked on (`/people/{id}/anime`).
+  Future<List<StaffAnime>> staffAnime(int malId) async {
+    try {
+      final res = await _get('/people/$malId/anime');
+      final data = (res.data as Map<String, dynamic>)['data'];
+      if (data is! List) return const [];
+      return [
+        for (final e in data)
+          if (e is Map<String, dynamic>) StaffAnime.fromJikan(e),
+      ];
+    } catch (_) {
+      return const [];
+    }
+  }
+
   /// Picture URLs (large) for an anime (`/anime/{id}/pictures`).
   /// Returns empty on network/API errors.
-  Future<List<String>> animePictures(int malId) async {
-    try {
+  Future<List<String>> animePictures(int malId) async {    try {
       final res = await _get('/anime/$malId/pictures');
       final data = (res.data as Map<String, dynamic>)['data'];
       if (data is! List) return const [];

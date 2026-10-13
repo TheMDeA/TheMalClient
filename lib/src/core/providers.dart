@@ -349,6 +349,28 @@ final animePicturesProvider =
   return ref.watch(tenraiRepositoryProvider).animePictures(id);
 });
 
+/// Full character details (Tenrai).
+final characterDetailProvider =
+    FutureProvider.family<CharacterDetail?, int>((ref, id) {
+  return ref.watch(tenraiRepositoryProvider).characterDetail(id);
+});
+
+/// Anime a character appears in (Tenrai).
+final characterAnimeProvider =
+    FutureProvider.family<List<CharacterAnime>, int>((ref, id) {
+  return ref.watch(tenraiRepositoryProvider).characterAnime(id);
+});
+
+/// Full staff/person details (Tenrai).
+final staffDetailProvider = FutureProvider.family<StaffDetail?, int>((ref, id) {
+  return ref.watch(tenraiRepositoryProvider).staffDetail(id);
+});
+
+/// Anime a staff member worked on (Tenrai).
+final staffAnimeProvider = FutureProvider.family<List<StaffAnime>, int>((ref, id) {
+  return ref.watch(tenraiRepositoryProvider).staffAnime(id);
+});
+
 /// My anime list, filtered by status (null = all).
 final myAnimeListProvider =
     FutureProvider.family<List<AnimeListEntry>, String?>((ref, status) {
