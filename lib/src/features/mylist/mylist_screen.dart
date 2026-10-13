@@ -654,7 +654,7 @@ class _ListRowState extends State<_ListRow> {
     if (hour == null || minute == null || weekday == null) return null;
     final jstNow =
         DateTime.now().toUtc().add(const Duration(hours: 9));
-    var candidate = DateTime(
+    var candidate = DateTime.utc(
         jstNow.year, jstNow.month, jstNow.day, hour, minute);
     var daysAhead = (weekday - candidate.weekday) % 7;
     if (daysAhead == 0 && !candidate.isAfter(jstNow)) daysAhead = 7;
@@ -663,13 +663,13 @@ class _ListRowState extends State<_ListRow> {
   }
 
   int? _weekday(String day) => switch (day.toLowerCase()) {
-        'mondays' => DateTime.monday,
-        'tuesdays' => DateTime.tuesday,
-        'wednesdays' => DateTime.wednesday,
-        'thursdays' => DateTime.thursday,
-        'fridays' => DateTime.friday,
-        'saturdays' => DateTime.saturday,
-        'sundays' => DateTime.sunday,
+        'monday' || 'mondays' => DateTime.monday,
+        'tuesday' || 'tuesdays' => DateTime.tuesday,
+        'wednesday' || 'wednesdays' => DateTime.wednesday,
+        'thursday' || 'thursdays' => DateTime.thursday,
+        'friday' || 'fridays' => DateTime.friday,
+        'saturday' || 'saturdays' => DateTime.saturday,
+        'sunday' || 'sundays' => DateTime.sunday,
         _ => null,
       };
 

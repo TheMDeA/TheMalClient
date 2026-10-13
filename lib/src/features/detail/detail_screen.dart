@@ -384,7 +384,7 @@ class _CountdownChipState extends State<_CountdownChip> {
     // Work in JST, then convert to local.
     final jstNow =
         DateTime.now().toUtc().add(const Duration(hours: 9));
-    var candidate = DateTime(
+    var candidate = DateTime.utc(
         jstNow.year, jstNow.month, jstNow.day, hour, minute);
     var daysAhead = (weekday - candidate.weekday) % 7;
     if (daysAhead == 0 && !candidate.isAfter(jstNow)) daysAhead = 7;
@@ -394,13 +394,13 @@ class _CountdownChipState extends State<_CountdownChip> {
   }
 
   int? _weekday(String day) => switch (day.toLowerCase()) {
-        'mondays' => DateTime.monday,
-        'tuesdays' => DateTime.tuesday,
-        'wednesdays' => DateTime.wednesday,
-        'thursdays' => DateTime.thursday,
-        'fridays' => DateTime.friday,
-        'saturdays' => DateTime.saturday,
-        'sundays' => DateTime.sunday,
+        'monday' || 'mondays' => DateTime.monday,
+        'tuesday' || 'tuesdays' => DateTime.tuesday,
+        'wednesday' || 'wednesdays' => DateTime.wednesday,
+        'thursday' || 'thursdays' => DateTime.thursday,
+        'friday' || 'fridays' => DateTime.friday,
+        'saturday' || 'saturdays' => DateTime.saturday,
+        'sunday' || 'sundays' => DateTime.sunday,
         _ => null,
       };
 }
@@ -1294,8 +1294,8 @@ class _MoreInfoTab extends StatelessWidget {
       final parts = time.split(':');
       final hour = int.parse(parts[0]);
       final minute = int.parse(parts[1]);
-      // JST -> local.
-      final jst = DateTime(2026, 1, 1, hour, minute);
+      // JST -> UTC -> local.
+      final jst = DateTime.utc(2026, 1, 1, hour, minute);
       final local =
           jst.subtract(const Duration(hours: 9)).toLocal();
       final h = local.hour;
@@ -1311,13 +1311,13 @@ class _MoreInfoTab extends StatelessWidget {
   }
 
   String _shortDay(String day) => switch (day.toLowerCase()) {
-        'mondays' => 'Mon',
-        'tuesdays' => 'Tue',
-        'wednesdays' => 'Wed',
-        'thursdays' => 'Thu',
-        'fridays' => 'Fri',
-        'saturdays' => 'Sat',
-        'sundays' => 'Sun',
+        'monday' || 'mondays' => 'Mon',
+        'tuesday' || 'tuesdays' => 'Tue',
+        'wednesday' || 'wednesdays' => 'Wed',
+        'thursday' || 'thursdays' => 'Thu',
+        'friday' || 'fridays' => 'Fri',
+        'saturday' || 'saturdays' => 'Sat',
+        'sunday' || 'sundays' => 'Sun',
         _ => day,
       };
 
