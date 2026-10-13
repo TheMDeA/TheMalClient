@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
@@ -83,15 +84,6 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
 
   bool get _isAnime => widget.kind == ListKind.anime;
 
-  String get _displayTitle {
-    final d = widget.detail;
-    return switch (_titleLang) {
-      1 => d.titleEn ?? d.title,
-      2 => d.titleJa ?? d.title,
-      _ => d.title,
-    };
-  }
-
   @override
   void initState() {
     super.initState();
@@ -112,90 +104,78 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
   Widget build(BuildContext context) {
     final d = widget.detail;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          _displayTitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            tooltip: 'Search',
-            onPressed: () => context.push('/discover'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.more_vert),
-            tooltip: 'More',
-            onPressed: () => _showMoreSheet(context, d, _isAnime),
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          final id = widget.detail.id;
-          ref.invalidate(_animeDetailProvider(id));
-          ref.invalidate(animeCharactersProvider(id));
-          ref.invalidate(animePicturesProvider((id: id, isAnime: _isAnime)));
-          ref.invalidate(animeStatisticsProvider(id));
-          ref.invalidate(_reviewsProvider(id));
-          if (_isAnime) ref.invalidate(animeStaffProvider(id));
-          try {
-            await ref.read(_animeDetailProvider(id).future);
-          } catch (_) {}
-        },
-        child: NestedScrollView(
-        controller: _outerScroll,
-        headerSliverBuilder: (context, innerScrolled) => [
-          // Auto-sizes to its content: no hardcoded height, so the
-          // countdown chip can never overlap the tab bar.
-          SliverToBoxAdapter(
-            child: _ParallaxHeader(
-              controller: _outerScroll,
-              child: Column(
-                children: [
-                  _DetailHeader(
-                    detail: d,
-                    kind: _isAnime ? 'anime' : 'manga',
-                    titleLang: _titleLang,
-                    onTitleLangChanged: (v) => setState(() => _titleLang = v),
-                    onInfoTap: () => _tabs.animateTo(_isAnime ? 6 : 5),
-                    onBookmarkTap: () => _openEditSheet(context),
+    // No AppBar: the banner carries its own back/actions/title overlays.
+    // Light status-bar icons for the dark banner top.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        body: RefreshIndicator(
+          onRefresh: () async {
+            final id = widget.detail.id;
+            ref.invalidate(_animeDetailProvider(id));
+            ref.invalidate(animeCharactersProvider(id));
+            ref.invalidate(animePicturesProvider((id: id, isAnime: _isAnime)));
+            ref.invalidate(animeStatisticsProvider(id));
+            ref.invalidate(_reviewsProvider(id));
+            if (_isAnime) ref.invalidate(animeStaffProvider(id));
+            try {
+              await ref.read(_animeDetailProvider(id).future);
+            } catch (_) {}
+          },
+          child: NestedScrollView(
+            controller: _outerScroll,
+            headerSliverBuilder: (context, innerScrolled) => [
+              // Auto-sizes to its content: no hardcoded height, so the
+              // countdown chip can never overlap the tab bar.
+              SliverToBoxAdapter(
+                child: _ParallaxHeader(
+                  controller: _outerScroll,
+                  child: Column(
+                    children: [
+                      _DetailHeader(
+                        detail: d,
+                        kind: _isAnime ? 'anime' : 'manga',
+                        titleLang: _titleLang,
+                        onTitleLangChanged: (v) =>
+                            setState(() => _titleLang = v),
+                        onBack: () => context.pop(),
+                        onSearchTap: () => context.push('/discover'),
+                        onMoreTap: () => _showMoreSheet(context, d, _isAnime),
+                      ),
+                      if (d.isAiring && d.broadcastDay != null)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                          child: _CountdownChip(detail: d),
+                        ),
+                    ],
                   ),
-                  if (d.isAiring && d.broadcastDay != null)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                      child: _CountdownChip(detail: d),
-                    ),
-                ],
+                ),
               ),
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _TabBarHeaderDelegate(_tabs, _isAnime),
+              ),
+            ],
+            body: TabBarView(
+              controller: _tabs,
+              children: [
+                _SynopsisTab(detail: d),
+                _CharactersTab(id: d.id, isAnime: _isAnime),
+                if (_isAnime) _StaffTab(animeId: d.id),
+                _MediaTab(detail: d, isAnime: _isAnime),
+                _RelatedTab(detail: d),
+                _ReviewsTab(animeId: d.id),
+                _MoreInfoTab(detail: d, isAnime: _isAnime),
+              ],
             ),
           ),
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: _TabBarHeaderDelegate(_tabs, _isAnime),
-          ),
-        ],
-        body: TabBarView(
-          controller: _tabs,
-          children: [
-            _SynopsisTab(detail: d),
-            _CharactersTab(id: d.id, isAnime: _isAnime),
-            if (_isAnime) _StaffTab(animeId: d.id),
-            _MediaTab(detail: d, isAnime: _isAnime),
-            _RelatedTab(detail: d),
-            _ReviewsTab(animeId: d.id),
-            _MoreInfoTab(detail: d, isAnime: _isAnime),
-          ],
         ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () => _openEditSheet(context),
+          icon: Icon(
+              widget.detail.myListStatus == null ? Icons.add : Icons.edit),
+          label: Text(_fabLabel()),
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openEditSheet(context),
-        icon: Icon(
-            widget.detail.myListStatus == null ? Icons.add : Icons.edit),
-        label: Text(_fabLabel()),
       ),
     );
   }
@@ -347,210 +327,315 @@ class _TabBarHeaderDelegate extends SliverPersistentHeaderDelegate {
 }
 
 /// Detail header: poster on the left, info panel on the right (DailyAL style).
+/// Detail header: full-bleed banner (poster cover-cropped) with gradient,
+/// overlaid navigation/actions, title and language switcher — then the
+/// stats row and info grid below.
 class _DetailHeader extends StatelessWidget {
   final AnimeDetail detail;
   final String kind;
   final int titleLang;
   final ValueChanged<int> onTitleLangChanged;
-  final VoidCallback onInfoTap;
-  final VoidCallback onBookmarkTap;
+  final VoidCallback onBack;
+  final VoidCallback onSearchTap;
+  final VoidCallback onMoreTap;
 
   const _DetailHeader({
     required this.detail,
     required this.kind,
     required this.titleLang,
     required this.onTitleLangChanged,
-    required this.onInfoTap,
-    required this.onBookmarkTap,
+    required this.onBack,
+    required this.onSearchTap,
+    required this.onMoreTap,
   });
+
+  bool get _isAnime => kind == 'anime';
+
+  String _title(AnimeDetail d) => switch (titleLang) {
+        1 => d.titleEn ?? d.title,
+        2 => d.titleJa ?? d.title,
+        _ => d.title,
+      };
 
   @override
   Widget build(BuildContext context) {
     final d = detail;
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final inList = d.myListStatus != null;
 
-    Widget infoRow(String label, String value) => Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Banner.
+        SizedBox(
+          height: 260,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              _bannerImage(context, d),
+              // Legibility gradients: top for the buttons, bottom for title.
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black54,
+                      Colors.transparent,
+                      Colors.transparent,
+                      Colors.black87,
+                    ],
+                    stops: [0.0, 0.3, 0.55, 1.0],
+                  ),
+                ),
+              ),
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 4,
+                left: 8,
+                right: 8,
+                child: Row(
+                  children: [
+                    _circleButton(
+                      context,
+                      Icons.arrow_back,
+                      'Back',
+                      onBack,
+                    ),
+                    const Spacer(),
+                    _circleButton(
+                      context,
+                      Icons.search,
+                      'Search',
+                      onSearchTap,
+                    ),
+                    const SizedBox(width: 8),
+                    _circleButton(
+                      context,
+                      Icons.more_vert,
+                      'More',
+                      onMoreTap,
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 12,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _title(d),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.headlineSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          shadows: const [
+                            Shadow(
+                              color: Colors.black54,
+                              blurRadius: 8,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    _languagePill(context, scheme),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Stats row: Score / Rank / Popularity / Episodes.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 16, 8, 0),
+          child: Row(
+            children: [
+              _stat(
+                context,
+                'Score',
+                d.mean?.toStringAsFixed(2) ?? '—',
+              ),
+              _stat(
+                context,
+                'Rank',
+                d.rank != null ? '#${d.rank}' : '—',
+              ),
+              _stat(
+                context,
+                'Popularity',
+                d.popularity != null ? '#${d.popularity}' : '—',
+              ),
+              _stat(
+                context,
+                _isAnime ? 'Episodes' : 'Chapters',
+                d.numEpisodes?.toString() ?? '—',
+              ),
+            ],
+          ),
+        ),
+        // Info grid.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+          child: Column(
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: _infoRow(context, 'Format', _formatLine(d))),
+                  const SizedBox(width: 12),
+                  Expanded(child: _infoRow(context, 'Aired', _airedLine(d))),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                      child: _infoRow(context, 'Studios', d.studio ?? '—')),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _infoRow(
+                      context,
+                      'Members',
+                      d.numListUsers != null ? _number(d.numListUsers!) : '—',
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _bannerImage(BuildContext context, AnimeDetail d) {
+    final url = d.imageUrl;
+    Widget fallback() => Container(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          child: const Center(
+            child:
+                Icon(Icons.image_outlined, size: 48, color: Colors.white24),
+          ),
+        );
+    final img = url == null || url.isEmpty
+        ? fallback()
+        : Image.network(
+            url,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => fallback(),
+          );
+    // Keep the shared-element flight from the poster grids.
+    return Hero(tag: 'poster-$kind-${d.id}', child: img);
+  }
+
+  Widget _circleButton(
+    BuildContext context,
+    IconData icon,
+    String tooltip,
+    VoidCallback onTap,
+  ) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.black.withValues(alpha: 0.45),
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Icon(icon, color: Colors.white, size: 22),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _languagePill(BuildContext context, ColorScheme scheme) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (int i = 0; i < 3; i++)
+            GestureDetector(
+              onTap: () => onTitleLangChanged(i),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: titleLang == i ? scheme.primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  ['TI', 'EN', 'JA'][i],
+                  style: TextStyle(
+                    color: titleLang == i ? scheme.onPrimary : Colors.white70,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stat(BuildContext context, String label, String value) {
+    final textTheme = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+    return Expanded(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            label,
-            style: textTheme.labelSmall?.copyWith(
-              color: scheme.onSurfaceVariant,
+            value,
+            style: textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
             ),
           ),
+          const SizedBox(height: 2),
           Text(
-            value,
-            style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+            label,
+            style: textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
     );
+  }
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Poster with overlays.
-          SizedBox(
-            width: 150,
-            child: Stack(
-              children: [
-                PosterImage(
-                  url: d.imageUrl,
-                  title: d.title,
-                  width: 150,
-                  height: 215,
-                  borderRadius: BorderRadius.circular(12),
-                  heroTag: 'poster-$kind-${d.id}',
-                ),
-                // Title language switcher.
-                Positioned(
-                  top: 8,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          for (int i = 0; i < 3; i++)
-                            GestureDetector(
-                              onTap: () => onTitleLangChanged(i),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: titleLang == i
-                                      ? scheme.primary
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  ['TI', 'EN', 'JA'][i],
-                                  style: TextStyle(
-                                    color: titleLang == i
-                                        ? scheme.onPrimary
-                                        : Colors.white70,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                // Bookmark + info buttons.
-                Positioned(
-                  bottom: 8,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: Icon(
-                              inList
-                                  ? Icons.bookmark
-                                  : Icons.bookmark_add,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                            tooltip: inList
-                                ? 'Edit list entry'
-                                : 'Add to list',
-                            onPressed: onBookmarkTap,
-                            visualDensity: VisualDensity.compact,
-                          ),
-                          Container(
-                            width: 1,
-                            height: 20,
-                            color: Colors.white24,
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.info_outline,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                            tooltip: 'More info',
-                            onPressed: onInfoTap,
-                            visualDensity: VisualDensity.compact,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+  Widget _infoRow(BuildContext context, String label, String value) {
+    final textTheme = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: textTheme.labelSmall?.copyWith(
+            color: scheme.onSurfaceVariant,
           ),
-          const SizedBox(width: 16),
-          // Info panel.
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (d.rank != null)
-                  Text(
-                    '#${d.rank}',
-                    style: textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w300,
-                    ),
-                  ),
-                const SizedBox(height: 2),
-                if (d.mean != null)
-                  Row(
-                    children: [
-                      const Icon(Icons.star, color: Colors.amber, size: 22),
-                      const SizedBox(width: 4),
-                      Text(
-                        d.mean!.toStringAsFixed(2),
-                        style: textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                if (d.numScoringUsers != null)
-                  Text(
-                    '${_compactNum(d.numScoringUsers!)} users',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                const SizedBox(height: 8),
-                infoRow('Format', _formatLine(d)),
-                infoRow('Aired', _airedLine(d)),
-                if (d.popularity != null)
-                  infoRow('Popularity', '#${d.popularity}'),
-                if (d.studio != null) infoRow('Studios', d.studio!),
-                if (d.numListUsers != null)
-                  infoRow('Members', _number(d.numListUsers!)),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+        ),
+      ],
     );
   }
 
@@ -573,19 +658,8 @@ class _DetailHeader extends StatelessWidget {
       final cap = s.isEmpty ? '' : s[0].toUpperCase() + s.substring(1);
       return '$cap ${d.seasonYear}';
     }
-    return d.airedFrom?.substring(0, 4) ?? '—';
-  }
-
-  String _compactNum(int n) {
-    if (n >= 1000000) {
-      final v = n / 1000000;
-      return '${v.toStringAsFixed(1)}M';
-    }
-    if (n >= 1000) {
-      final v = n / 1000;
-      return '${v.toStringAsFixed(1)}K';
-    }
-    return '$n';
+    final from = d.airedFrom;
+    return from != null && from.length >= 4 ? from.substring(0, 4) : '—';
   }
 
   String _number(int n) {
@@ -595,6 +669,7 @@ class _DetailHeader extends StatelessWidget {
     );
   }
 }
+
 
 class _CountdownChip extends StatefulWidget {
   final AnimeDetail detail;

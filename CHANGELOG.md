@@ -4,6 +4,7 @@ All notable changes to MALClient (Flutter rewrite) are documented here.
 
 ## [1.2.7] - 2026-10-14
 
+- Detail pages have a full-width banner header again (poster cover with title overlay), keeping all info: score, rank, popularity, episodes, format, aired date, studios, members
 - Fixed the accent picker checkmark being invisible on light accent colors
 - List status colors (Watching, Completed…) now adapt to light/dark theme
 - Removed the duplicate theme-mode picker from the theme setup screen
