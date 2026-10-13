@@ -15,3 +15,4 @@
 - Profile supports pull-to-refresh
 - Schedule marks today's weekday and its countdowns tick every minute
 - Fixed the fullscreen picture viewer leaking memory on every open
+- Removed the duplicate About entry from Profile (About now lives only in Settings)

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:malclient/src/core/providers.dart';
-import 'package:malclient/src/core/services/update_service.dart';
 import 'package:malclient/src/data/models/media.dart';
 
 /// Profile tab: avatar header, anime/manga stats, menu to settings/logout.
@@ -55,26 +54,6 @@ class ProfileScreen extends ConsumerWidget {
                   icon: Icons.history,
                   title: 'History',
                   onTap: () => context.push('/history'),
-                ),
-                _MenuTile(
-                  icon: Icons.info_outline,
-                  title: 'About MyAL',
-                  onTap: () async {
-                    final version = await installedVersion();
-                    if (!context.mounted) return;
-                    showAboutDialog(
-                      context: context,
-                      applicationName: 'MyAL',
-                      applicationVersion: '$version (Flutter rewrite)',
-                      children: const [
-                        Text(
-                          'A from-scratch Flutter rewrite of MyAL '
-                          'MyAnimeList app. Data by MyAnimeList; reviews and '
-                          'news by Tenrai.',
-                        ),
-                      ],
-                    );
-                  },
                 ),
                 _MenuTile(
                   icon: Icons.logout,

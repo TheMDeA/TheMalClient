@@ -19,6 +19,7 @@ All notable changes to MALClient (Flutter rewrite) are documented here.
 - Profile supports pull-to-refresh
 - Schedule marks today's weekday and its countdowns tick every minute
 - Fixed the fullscreen picture viewer leaking memory on every open
+- Removed the duplicate About entry from Profile (About now lives only in Settings)
 
 ## [1.2.4] - 2026-10-13
 
