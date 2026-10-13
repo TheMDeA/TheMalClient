@@ -192,14 +192,30 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditSheet(context),
-        icon: const Icon(Icons.add),
-        label: Text(
-          widget.detail.myListStatus == null
-              ? 'Add to list'
-              : 'Edit list entry',
-        ),
+        icon: Icon(
+            widget.detail.myListStatus == null ? Icons.add : Icons.edit),
+        label: Text(_fabLabel()),
       ),
     );
+  }
+
+  /// FAB label: "Add to list" for new entries, otherwise the current list
+  /// status — with episode progress for in-progress entries
+  /// ("Watching • 12/64").
+  String _fabLabel() {
+    final mls = widget.detail.myListStatus;
+    if (mls == null) return 'Add to list';
+    final label = _isAnime
+        ? AnimeListStatuses.label(mls.status)
+        : MangaListStatuses.label(mls.status);
+    final inProgress = mls.status == AnimeListStatuses.watching ||
+        mls.status == MangaListStatuses.reading;
+    if (!inProgress) return label;
+    final total = _isAnime ? widget.detail.numEpisodes : null;
+    final progress = total != null && total > 0
+        ? '${mls.progress}/$total'
+        : '${mls.progress}';
+    return '$label • $progress';
   }
 
   void _openEditSheet(BuildContext context) {

@@ -5,6 +5,7 @@ All notable changes to MALClient (Flutter rewrite) are documented here.
 ## [1.2.6] - 2026-10-13
 
 - Fixed score badges on Discover posters being unreadable (dark text on dark background)
+- Detail list-entry button now shows your status and episode progress ("Watching • 12/64")
 
 ## [1.2.5] - 2026-10-13
 
