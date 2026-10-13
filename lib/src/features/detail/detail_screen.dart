@@ -40,11 +40,11 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
             children: [
               const Icon(Icons.cloud_off_outlined, size: 40),
               const SizedBox(height: 8),
-              Text('Could not load details.\n$e',
-                  textAlign: TextAlign.center),
+              Text('Could not load details.\n$e', textAlign: TextAlign.center),
               const SizedBox(height: 12),
               FilledButton(
-                onPressed: () => ref.invalidate(_animeDetailProvider(widget.id)),
+                onPressed: () =>
+                    ref.invalidate(_animeDetailProvider(widget.id)),
                 child: const Text('Retry'),
               ),
             ],
@@ -55,8 +55,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
   }
 }
 
-final _animeDetailProvider =
-    FutureProvider.family<AnimeDetail, int>((ref, id) {
+final _animeDetailProvider = FutureProvider.family<AnimeDetail, int>((ref, id) {
   return ref.watch(mediaRepositoryProvider).animeDetail(id);
 });
 
@@ -106,84 +105,98 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
   Widget build(BuildContext context) {
     final d = widget.detail;
 
+    // Header content height: poster block (235) + optional countdown chip.
+    final headerContentHeight =
+        235.0 + ((d.isAiring && d.broadcastDay != null) ? 56.0 : 0.0);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          _displayTitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            tooltip: 'Search',
-            onPressed: () => context.push('/discover'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.more_vert),
-            tooltip: 'More',
-            onPressed: () => _showMoreSheet(context, d),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          _DetailHeader(
-            detail: d,
-            kind: _isAnime ? 'anime' : 'manga',
-            titleLang: _titleLang,
-            onTitleLangChanged: (v) =>
-                setState(() => _titleLang = v),
-            onInfoTap: () => _tabs.animateTo(_isAnime ? 6 : 5),
-            onBookmarkTap: () => _openEditSheet(context),
-          ),
-          if (d.isAiring && d.broadcastDay != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: _CountdownChip(detail: d),
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerScrolled) => [
+          SliverAppBar(
+            pinned: true,
+            expandedHeight: kToolbarHeight + headerContentHeight + 48.0,
+            title: Text(
+              _displayTitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-          TabBar(
-            controller: _tabs,
-            isScrollable: true,
-            tabs: [
-              const Tab(text: 'Synopsis'),
-              const Tab(text: 'Characters'),
-              if (_isAnime) const Tab(text: 'Staff'),
-              const Tab(text: 'Media'),
-              const Tab(text: 'Related'),
-              const Tab(text: 'Reviews'),
-              const Tab(text: 'More Info'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.search),
+                tooltip: 'Search',
+                onPressed: () => context.push('/discover'),
+              ),
+              IconButton(
+                icon: const Icon(Icons.more_vert),
+                tooltip: 'More',
+                onPressed: () => _showMoreSheet(context, d),
+              ),
             ],
-          ),
-          Expanded(
-            child: TabBarView(
+            flexibleSpace: FlexibleSpaceBar(
+              collapseMode: CollapseMode.parallax,
+              background: SafeArea(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    _DetailHeader(
+                      detail: d,
+                      kind: _isAnime ? 'anime' : 'manga',
+                      titleLang: _titleLang,
+                      onTitleLangChanged: (v) => setState(() => _titleLang = v),
+                      onInfoTap: () => _tabs.animateTo(_isAnime ? 6 : 5),
+                      onBookmarkTap: () => _openEditSheet(context),
+                    ),
+                    if (d.isAiring && d.broadcastDay != null)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                        child: _CountdownChip(detail: d),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            bottom: TabBar(
               controller: _tabs,
-              children: [
-                _SynopsisTab(detail: d),
-                _CharactersTab(
-                    id: d.id, isAnime: _isAnime),
-                if (_isAnime) _StaffTab(animeId: d.id),
-                _MediaTab(detail: d),
-                _RelatedTab(detail: d),
-                _ReviewsTab(animeId: d.id),
-                _MoreInfoTab(detail: d, isAnime: _isAnime),
+              isScrollable: true,
+              tabs: [
+                const Tab(text: 'Synopsis'),
+                const Tab(text: 'Characters'),
+                if (_isAnime) const Tab(text: 'Staff'),
+                const Tab(text: 'Media'),
+                const Tab(text: 'Related'),
+                const Tab(text: 'Reviews'),
+                const Tab(text: 'More Info'),
               ],
             ),
           ),
         ],
+        body: TabBarView(
+          controller: _tabs,
+          children: [
+            _SynopsisTab(detail: d),
+            _CharactersTab(id: d.id, isAnime: _isAnime),
+            if (_isAnime) _StaffTab(animeId: d.id),
+            _MediaTab(detail: d),
+            _RelatedTab(detail: d),
+            _ReviewsTab(animeId: d.id),
+            _MoreInfoTab(detail: d, isAnime: _isAnime),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditSheet(context),
         icon: const Icon(Icons.add),
-        label: Text(widget.detail.myListStatus == null
-            ? 'Add to list'
-            : 'Edit list entry'),
+        label: Text(
+          widget.detail.myListStatus == null
+              ? 'Add to list'
+              : 'Edit list entry',
+        ),
       ),
     );
   }
 
   void _openEditSheet(BuildContext context) {
-    final mls = widget.detail.myListStatus ??
+    final mls =
+        widget.detail.myListStatus ??
         const MyListStatus(status: AnimeListStatuses.planToWatch);
     showEditEntrySheet(
       context,
@@ -252,19 +265,23 @@ class _DetailHeader extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     Widget infoRow(String label, String value) => Padding(
-          padding: const EdgeInsets.only(bottom: 6),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label,
-                  style: textTheme.labelSmall
-                      ?.copyWith(color: scheme.onSurfaceVariant)),
-              Text(value,
-                  style: textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w600)),
-            ],
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: textTheme.labelSmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
           ),
-        );
+          Text(
+            value,
+            style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
@@ -303,13 +320,14 @@ class _DetailHeader extends StatelessWidget {
                               onTap: () => onTitleLangChanged(i),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 6),
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
                                 decoration: BoxDecoration(
                                   color: titleLang == i
                                       ? scheme.primary
                                       : Colors.transparent,
-                                  borderRadius:
-                                      BorderRadius.circular(20),
+                                  borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Text(
                                   ['TI', 'EN', 'JA'][i],
@@ -343,8 +361,11 @@ class _DetailHeader extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.bookmark_add,
-                                color: Colors.white, size: 20),
+                            icon: const Icon(
+                              Icons.bookmark_add,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                             tooltip: 'Add to list',
                             onPressed: onBookmarkTap,
                             visualDensity: VisualDensity.compact,
@@ -355,8 +376,11 @@ class _DetailHeader extends StatelessWidget {
                             color: Colors.white24,
                           ),
                           IconButton(
-                            icon: const Icon(Icons.info_outline,
-                                color: Colors.white, size: 20),
+                            icon: const Icon(
+                              Icons.info_outline,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                             tooltip: 'More info',
                             onPressed: onInfoTap,
                             visualDensity: VisualDensity.compact,
@@ -376,25 +400,33 @@ class _DetailHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (d.rank != null)
-                  Text('#${d.rank}',
-                      style: textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w300)),
+                  Text(
+                    '#${d.rank}',
+                    style: textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
                 const SizedBox(height: 2),
                 if (d.mean != null)
                   Row(
                     children: [
-                      const Icon(Icons.star,
-                          color: Colors.amber, size: 22),
+                      const Icon(Icons.star, color: Colors.amber, size: 22),
                       const SizedBox(width: 4),
-                      Text(d.mean!.toStringAsFixed(2),
-                          style: textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.w600)),
+                      Text(
+                        d.mean!.toStringAsFixed(2),
+                        style: textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 if (d.numScoringUsers != null)
-                  Text('${_compactNum(d.numScoringUsers!)} users',
-                      style: textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant)),
+                  Text(
+                    '${_compactNum(d.numScoringUsers!)} users',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
                 const SizedBox(height: 8),
                 infoRow('Format', _formatLine(d)),
                 infoRow('Aired', _airedLine(d)),
@@ -427,8 +459,7 @@ class _DetailHeader extends StatelessWidget {
   String _airedLine(AnimeDetail d) {
     if (d.seasonYear != null) {
       final s = d.season ?? '';
-      final cap =
-          s.isEmpty ? '' : s[0].toUpperCase() + s.substring(1);
+      final cap = s.isEmpty ? '' : s[0].toUpperCase() + s.substring(1);
       return '$cap ${d.seasonYear}';
     }
     return d.airedFrom?.substring(0, 4) ?? '—';
@@ -447,11 +478,10 @@ class _DetailHeader extends StatelessWidget {
   }
 
   String _number(int n) {
-    return n
-        .toString()
-        .replaceAllMapped(
-            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-            (m) => '${m[1]},');
+    return n.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (m) => '${m[1]},',
+    );
   }
 }
 
@@ -471,8 +501,7 @@ class _CountdownChipState extends State<_CountdownChip> {
   void initState() {
     super.initState();
     // Tick every minute to keep the countdown fresh.
-    _timer = Timer.periodic(
-        const Duration(minutes: 1), (_) => setState(() {}));
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) => setState(() {}));
   }
 
   @override
@@ -498,11 +527,19 @@ class _CountdownChipState extends State<_CountdownChip> {
           Icon(Icons.schedule, size: 16, color: scheme.onPrimaryContainer),
           const SizedBox(width: 6),
           Flexible(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: scheme.onPrimaryContainer,
-                fontWeight: FontWeight.w600,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              transitionBuilder: (child, animation) => ScaleTransition(
+                scale: Tween<double>(begin: 0.92, end: 1.0).animate(animation),
+                child: FadeTransition(opacity: animation, child: child),
+              ),
+              child: Text(
+                label,
+                key: ValueKey(label),
+                style: TextStyle(
+                  color: scheme.onPrimaryContainer,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
@@ -591,10 +628,14 @@ class _CountdownChipState extends State<_CountdownChip> {
     if (hour == null || minute == null || weekday == null) return null;
 
     // Work in JST, then convert to local.
-    final jstNow =
-        DateTime.now().toUtc().add(const Duration(hours: 9));
+    final jstNow = DateTime.now().toUtc().add(const Duration(hours: 9));
     var candidate = DateTime.utc(
-        jstNow.year, jstNow.month, jstNow.day, hour, minute);
+      jstNow.year,
+      jstNow.month,
+      jstNow.day,
+      hour,
+      minute,
+    );
     var daysAhead = (weekday - candidate.weekday) % 7;
     if (daysAhead == 0 && !candidate.isAfter(jstNow)) daysAhead = 7;
     candidate = candidate.add(Duration(days: daysAhead));
@@ -603,15 +644,15 @@ class _CountdownChipState extends State<_CountdownChip> {
   }
 
   int? _weekday(String day) => switch (day.toLowerCase()) {
-        'monday' || 'mondays' => DateTime.monday,
-        'tuesday' || 'tuesdays' => DateTime.tuesday,
-        'wednesday' || 'wednesdays' => DateTime.wednesday,
-        'thursday' || 'thursdays' => DateTime.thursday,
-        'friday' || 'fridays' => DateTime.friday,
-        'saturday' || 'saturdays' => DateTime.saturday,
-        'sunday' || 'sundays' => DateTime.sunday,
-        _ => null,
-      };
+    'monday' || 'mondays' => DateTime.monday,
+    'tuesday' || 'tuesdays' => DateTime.tuesday,
+    'wednesday' || 'wednesdays' => DateTime.wednesday,
+    'thursday' || 'thursdays' => DateTime.thursday,
+    'friday' || 'fridays' => DateTime.friday,
+    'saturday' || 'saturdays' => DateTime.saturday,
+    'sunday' || 'sundays' => DateTime.sunday,
+    _ => null,
+  };
 }
 
 class _SynopsisTab extends StatelessWidget {
@@ -630,10 +671,7 @@ class _SynopsisTab extends StatelessWidget {
             runSpacing: 8,
             children: [
               for (final g in detail.genres)
-                Chip(
-                  label: Text(g),
-                  visualDensity: VisualDensity.compact,
-                ),
+                Chip(label: Text(g), visualDensity: VisualDensity.compact),
             ],
           ),
         if (detail.genres.isNotEmpty) const SizedBox(height: 16),
@@ -674,26 +712,29 @@ class _StatisticsSection extends ConsumerWidget {
             const Divider(height: 24),
             Text(
               'Statistics',
-              style: textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
+              style: textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 12),
-            _statBar(context, 'Watching', s.watching, s.total,
-                scheme.primary),
-            _statBar(context, 'Completed', s.completed, s.total,
-                Colors.green),
-            _statBar(context, 'On Hold', s.onHold, s.total,
-                Colors.orange),
-            _statBar(context, 'Dropped', s.dropped, s.total,
-                scheme.error),
-            _statBar(context, 'Plan to Watch', s.planToWatch, s.total,
-                scheme.tertiary),
+            _statBar(context, 'Watching', s.watching, s.total, scheme.primary),
+            _statBar(context, 'Completed', s.completed, s.total, Colors.green),
+            _statBar(context, 'On Hold', s.onHold, s.total, Colors.orange),
+            _statBar(context, 'Dropped', s.dropped, s.total, scheme.error),
+            _statBar(
+              context,
+              'Plan to Watch',
+              s.planToWatch,
+              s.total,
+              scheme.tertiary,
+            ),
             if (s.scorePercent.isNotEmpty) ...[
               const SizedBox(height: 16),
               Text(
                 'Score distribution',
-                style: textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.bold),
+                style: textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               SizedBox(
@@ -704,11 +745,9 @@ class _StatisticsSection extends ConsumerWidget {
                     for (int score = 10; score >= 1; score--)
                       Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
                           child: Column(
-                            mainAxisAlignment:
-                                MainAxisAlignment.end,
+                            mainAxisAlignment: MainAxisAlignment.end,
                             children: [
                               Text(
                                 '${(s.scorePercent[score] ?? 0).toStringAsFixed(0)}%',
@@ -719,13 +758,13 @@ class _StatisticsSection extends ConsumerWidget {
                               ),
                               const SizedBox(height: 2),
                               Container(
-                                height: 60 *
+                                height:
+                                    60 *
                                     (s.scorePercent[score] ?? 0) /
                                     _maxScore(s.scorePercent),
                                 decoration: BoxDecoration(
                                   color: scheme.primaryContainer,
-                                  borderRadius:
-                                      const BorderRadius.vertical(
+                                  borderRadius: const BorderRadius.vertical(
                                     top: Radius.circular(3),
                                   ),
                                 ),
@@ -761,26 +800,29 @@ class _StatisticsSection extends ConsumerWidget {
     return max;
   }
 
-  Widget _statBar(BuildContext context, String label, int count,
-      int total, Color color) {
+  Widget _statBar(
+    BuildContext context,
+    String label,
+    int count,
+    int total,
+    Color color,
+  ) {
     final textTheme = Theme.of(context).textTheme;
     final pct = total > 0 ? count / total : 0.0;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         children: [
-          SizedBox(
-            width: 100,
-            child: Text(label, style: textTheme.bodySmall),
-          ),
+          SizedBox(width: 100, child: Text(label, style: textTheme.bodySmall)),
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
                 value: pct,
                 minHeight: 8,
-                backgroundColor:
-                    Theme.of(context).colorScheme.surfaceContainerHighest,
+                backgroundColor: Theme.of(context)
+                    .colorScheme
+                    .surfaceContainerHighest,
                 valueColor: AlwaysStoppedAnimation<Color>(color),
               ),
             ),
@@ -817,9 +859,9 @@ class _CharactersTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final chars = ref.watch(isAnime
-        ? animeCharactersProvider(id)
-        : mangaCharactersProvider(id));
+    final chars = ref.watch(
+      isAnime ? animeCharactersProvider(id) : mangaCharactersProvider(id),
+    );
     final textTheme = Theme.of(context).textTheme;
 
     return chars.when(
@@ -829,8 +871,7 @@ class _CharactersTab extends ConsumerWidget {
         }
         return GridView.builder(
           padding: const EdgeInsets.all(16),
-          gridDelegate:
-              const SliverGridDelegateWithFixedCrossAxisCount(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 3,
             childAspectRatio: 0.62,
             crossAxisSpacing: 12,
@@ -856,21 +897,19 @@ class _CharactersTab extends ConsumerWidget {
                   c.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: textTheme.bodySmall
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                  style: textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 Text(
                   c.role.isNotEmpty
                       ? c.role
-                      : (c.voiceActors.isNotEmpty
-                          ? c.voiceActors.first
-                          : ''),
+                      : (c.voiceActors.isNotEmpty ? c.voiceActors.first : ''),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: textTheme.labelSmall?.copyWith(
-                    color:
-                        Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -879,14 +918,13 @@ class _CharactersTab extends ConsumerWidget {
           },
         );
       },
-      loading: () =>
-          const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => _ErrorRetry(
         message: 'Could not load characters.',
         details: _errorDetails(e),
-        onRetry: () => ref.invalidate(isAnime
-            ? animeCharactersProvider(id)
-            : mangaCharactersProvider(id)),
+        onRetry: () => ref.invalidate(
+          isAnime ? animeCharactersProvider(id) : mangaCharactersProvider(id),
+        ),
       ),
     );
   }
@@ -898,8 +936,11 @@ class _ErrorRetry extends StatelessWidget {
   final String? details;
   final VoidCallback onRetry;
 
-  const _ErrorRetry(
-      {required this.message, this.details, required this.onRetry});
+  const _ErrorRetry({
+    required this.message,
+    this.details,
+    required this.onRetry,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -917,18 +958,13 @@ class _ErrorRetry extends StatelessWidget {
               Text(
                 details!,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurfaceVariant,
-                    ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
                 textAlign: TextAlign.center,
               ),
             ],
             const SizedBox(height: 12),
-            FilledButton(
-              onPressed: onRetry,
-              child: const Text('Retry'),
-            ),
+            FilledButton(onPressed: onRetry, child: const Text('Retry')),
           ],
         ),
       ),
@@ -941,7 +977,8 @@ String _errorDetails(Object e) {
   final s = e.toString();
   // DioException message is verbose; extract the key part.
   if (s.contains('DioException')) {
-    if (s.contains('status code of 429')) return 'Rate limited (429). Try again in a moment.';
+    if (s.contains('status code of 429'))
+      return 'Rate limited (429). Try again in a moment.';
     if (s.contains('status code of 404')) return 'Not found (404).';
     final match = RegExp(r'status code of (\d+)').firstMatch(s);
     if (match != null) return 'HTTP ${match.group(1)}.';
@@ -994,8 +1031,7 @@ class _StaffTab extends ConsumerWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             s.name,
@@ -1022,8 +1058,7 @@ class _StaffTab extends ConsumerWidget {
           },
         );
       },
-      loading: () =>
-          const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => _ErrorRetry(
         message: 'Could not load staff.',
         details: _errorDetails(e),
@@ -1056,9 +1091,8 @@ class _MediaTab extends StatelessWidget {
         Text(
           'Pictures and videos are coming to this tab in a later update.',
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       ],
     );
@@ -1081,10 +1115,7 @@ class _RelatedTab extends StatelessWidget {
           (anime: r.anime, label: r.relationLabel),
       ];
     } else {
-      items = [
-        for (final a in detail.recommendations)
-          (anime: a, label: null),
-      ];
+      items = [for (final a in detail.recommendations) (anime: a, label: null)];
     }
     if (items.isEmpty) {
       return const Center(child: Text('No related titles.'));
@@ -1108,8 +1139,7 @@ class _RelatedTab extends StatelessWidget {
               title: a.title,
               mean: a.mean,
               width: double.infinity,
-              onTap: () =>
-                  context.push('/detail/anime/${a.id}'),
+              onTap: () => context.push('/detail/anime/${a.id}'),
             ),
             if (label != null)
               Positioned(
@@ -1117,7 +1147,9 @@ class _RelatedTab extends StatelessWidget {
                 left: 6,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 4),
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.72),
                     borderRadius: BorderRadius.circular(8),
@@ -1172,9 +1204,11 @@ class _ReviewsTab extends ConsumerWidget {
                               ? NetworkImage(r.authorImageUrl!)
                               : null,
                           child: r.authorImageUrl == null
-                              ? Text(r.author.isEmpty
-                                  ? '?'
-                                  : r.author[0].toUpperCase())
+                              ? Text(
+                                  r.author.isEmpty
+                                      ? '?'
+                                      : r.author[0].toUpperCase(),
+                                )
                               : null,
                         ),
                         const SizedBox(width: 10),
@@ -1182,9 +1216,12 @@ class _ReviewsTab extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(r.author,
-                                  style: textTheme.titleSmall?.copyWith(
-                                      fontWeight: FontWeight.w600)),
+                              Text(
+                                r.author,
+                                style: textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                               Text(
                                 r.date.length >= 10
                                     ? r.date.substring(0, 10)
@@ -1198,7 +1235,9 @@ class _ReviewsTab extends ConsumerWidget {
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: scheme.primaryContainer,
                             borderRadius: BorderRadius.circular(12),
@@ -1218,8 +1257,7 @@ class _ReviewsTab extends ConsumerWidget {
                       r.text,
                       maxLines: 8,
                       overflow: TextOverflow.ellipsis,
-                      style: textTheme.bodyMedium
-                          ?.copyWith(height: 1.45),
+                      style: textTheme.bodyMedium?.copyWith(height: 1.45),
                     ),
                   ],
                 ),
@@ -1234,8 +1272,7 @@ class _ReviewsTab extends ConsumerWidget {
   }
 }
 
-final _reviewsProvider =
-    FutureProvider.family<List<Review>, int>((ref, id) {
+final _reviewsProvider = FutureProvider.family<List<Review>, int>((ref, id) {
   return ref.watch(jikanRepositoryProvider).animeReviews(id);
 });
 
@@ -1264,13 +1301,19 @@ class _MoreInfoTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label,
-                  style: textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant)),
+              Text(
+                label,
+                style: textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text(value,
-                  style: textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w600)),
+              Text(
+                value,
+                style: textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
         ),
@@ -1288,9 +1331,12 @@ class _MoreInfoTab extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label,
-                style: textTheme.bodySmall
-                    ?.copyWith(color: scheme.onSurfaceVariant)),
+            Text(
+              label,
+              style: textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
             const SizedBox(height: 4),
             Text(value, style: textTheme.bodyMedium),
           ],
@@ -1312,10 +1358,7 @@ class _MoreInfoTab extends StatelessWidget {
             runSpacing: 8,
             children: [
               for (final item in items)
-                Chip(
-                  label: Text(item),
-                  visualDensity: VisualDensity.compact,
-                ),
+                Chip(label: Text(item), visualDensity: VisualDensity.compact),
             ],
           ),
         ],
@@ -1331,9 +1374,10 @@ class _MoreInfoTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text('More Info',
-            style: textTheme.headlineSmall
-                ?.copyWith(fontWeight: FontWeight.w600)),
+        Text(
+          'More Info',
+          style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
+        ),
         const SizedBox(height: 16),
         Row(
           children: [
@@ -1351,9 +1395,11 @@ class _MoreInfoTab extends StatelessWidget {
           children: [
             if (aired != null) card('Aired', aired, flex: 3),
             if (aired != null) const SizedBox(width: 8),
-            card('Source',
-                d.source?.isNotEmpty == true ? _cap(d.source) : '—',
-                flex: 2),
+            card(
+              'Source',
+              d.source?.isNotEmpty == true ? _cap(d.source) : '—',
+              flex: 2,
+            ),
           ],
         ),
         const SizedBox(height: 8),
@@ -1389,24 +1435,24 @@ class _MoreInfoTab extends StatelessWidget {
   }
 
   String? _mediaType(String? t) => switch (t) {
-        'tv' => 'TV',
-        'ova' => 'OVA',
-        'movie' => 'Movie',
-        'special' => 'Special',
-        'ona' => 'ONA',
-        'music' => 'Music',
-        _ => t == null ? null : _cap(t),
-      };
+    'tv' => 'TV',
+    'ova' => 'OVA',
+    'movie' => 'Movie',
+    'special' => 'Special',
+    'ona' => 'ONA',
+    'music' => 'Music',
+    _ => t == null ? null : _cap(t),
+  };
 
   String _cap(String? s) =>
       s == null || s.isEmpty ? '' : s[0].toUpperCase() + s.substring(1);
 
   String _prettyStatus(String? s) => switch (s) {
-        'currently_airing' => 'Currently airing',
-        'finished_airing' => 'Finished airing',
-        'not_yet_aired' => 'Not yet aired',
-        _ => s ?? '—',
-      };
+    'currently_airing' => 'Currently airing',
+    'finished_airing' => 'Finished airing',
+    'not_yet_aired' => 'Not yet aired',
+    _ => s ?? '—',
+  };
 
   String _premiered(AnimeDetail d) {
     if (d.seasonYear != null) {
@@ -1434,8 +1480,7 @@ class _MoreInfoTab extends StatelessWidget {
       final minute = int.parse(parts[1]);
       // JST -> UTC -> local.
       final jst = DateTime.utc(2026, 1, 1, hour, minute);
-      final local =
-          jst.subtract(const Duration(hours: 9)).toLocal();
+      final local = jst.subtract(const Duration(hours: 9)).toLocal();
       final h = local.hour;
       final period = h >= 12 ? 'PM' : 'AM';
       final h12 = h % 12 == 0 ? 12 : h % 12;
@@ -1449,25 +1494,25 @@ class _MoreInfoTab extends StatelessWidget {
   }
 
   String _shortDay(String day) => switch (day.toLowerCase()) {
-        'monday' || 'mondays' => 'Mon',
-        'tuesday' || 'tuesdays' => 'Tue',
-        'wednesday' || 'wednesdays' => 'Wed',
-        'thursday' || 'thursdays' => 'Thu',
-        'friday' || 'fridays' => 'Fri',
-        'saturday' || 'saturdays' => 'Sat',
-        'sunday' || 'sundays' => 'Sun',
-        _ => day,
-      };
+    'monday' || 'mondays' => 'Mon',
+    'tuesday' || 'tuesdays' => 'Tue',
+    'wednesday' || 'wednesdays' => 'Wed',
+    'thursday' || 'thursdays' => 'Thu',
+    'friday' || 'fridays' => 'Fri',
+    'saturday' || 'saturdays' => 'Sat',
+    'sunday' || 'sundays' => 'Sun',
+    _ => day,
+  };
 
   String? _prettyRating(String? r) => switch (r) {
-        'g' => 'G',
-        'pg' => 'PG',
-        'pg_13' => 'PG 13',
-        'r' => 'R',
-        'r_plus' => 'R+',
-        'rx' => 'Rx',
-        _ => r,
-      };
+    'g' => 'G',
+    'pg' => 'PG',
+    'pg_13' => 'PG 13',
+    'r' => 'R',
+    'r_plus' => 'R+',
+    'rx' => 'Rx',
+    _ => r,
+  };
 
   /// All alternative titles combined.
   String _allTitles(AnimeDetail d) {
