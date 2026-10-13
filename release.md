@@ -6,3 +6,4 @@
 - Removed dead "coming soon" buttons on Home (notifications bell, Categories/Genres chips)
 - Media tab gallery now works for manga too
 - Fixed About dialog crediting Jikan instead of Tenrai
+- Settings → Storage now actually clears the cached posters (it showed a fake confirmation before)
