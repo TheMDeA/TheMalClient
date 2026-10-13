@@ -62,8 +62,8 @@ class _HistoryTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final value = kind == ListKind.anime
-        ? ref.watch(myAnimeListProvider(null))
-        : ref.watch(myMangaListProvider(null));
+        ? ref.watch(myAnimeListProvider)
+        : ref.watch(myMangaListProvider);
 
     return value.when(
       data: (items) {

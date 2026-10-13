@@ -29,8 +29,24 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
   String _searchQuery = '';
   final _searchController = TextEditingController();
 
+  /// Single screen-level ticker keeping airing countdowns fresh (rows no
+  /// longer run their own per-second timers).
+  Timer? _ticker;
+
+  /// Entry ids with a stepper update in flight (steppers disabled meanwhile).
+  final _steppingIds = <int>{};
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
   @override
   void dispose() {
+    _ticker?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -47,6 +63,10 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
     ListFilterState f,
   ) {
     var out = items;
+    // Status chips filter locally — the list is fetched once (all statuses).
+    if (_status != null) {
+      out = out.where((e) => e.listStatus.status == _status).toList();
+    }
     if (_searchQuery.isNotEmpty) {
       out = out
           .where((e) => e.anime.title.toLowerCase().contains(_searchQuery))
@@ -115,6 +135,10 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
     ListFilterState f,
   ) {
     var out = items;
+    // Status chips filter locally — the list is fetched once (all statuses).
+    if (_status != null) {
+      out = out.where((e) => e.listStatus.status == _status).toList();
+    }
     if (_searchQuery.isNotEmpty) {
       out = out
           .where((e) => e.manga.title.toLowerCase().contains(_searchQuery))
@@ -306,7 +330,7 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
   }
 
   Widget _animeList() {
-    final value = ref.watch(myAnimeListProvider(_status));
+    final value = ref.watch(myAnimeListProvider);
     final filter = ref.watch(listFilterProvider);
     return value.when(
       data: (items) {
@@ -341,6 +365,7 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
                   broadcastTime: e.anime.broadcastTime,
                   airedFrom: e.anime.airedFrom,
                   compact: filter.compactRows,
+                  stepping: _steppingIds.contains(e.anime.id),
                   onTap: () => context.push('/detail/anime/${e.anime.id}'),
                   onEdit: () => showEditEntrySheet(
                     context,
@@ -370,7 +395,7 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
   }
 
   Widget _mangaList() {
-    final value = ref.watch(myMangaListProvider(_status));
+    final value = ref.watch(myMangaListProvider);
     final filter = ref.watch(listFilterProvider);
     return value.when(
       data: (items) {
@@ -405,6 +430,7 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
                   broadcastTime: null,
                   airedFrom: null,
                   compact: filter.compactRows,
+                  stepping: _steppingIds.contains(e.manga.id),
                   onTap: () => context.push('/detail/manga/${e.manga.id}'),
                   onEdit: () => showEditEntrySheet(
                     context,
@@ -433,38 +459,46 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
     );
   }
 
+  /// Optimistic stepper: patches the cached list instantly (no refetch, no
+  /// skeleton flash), then persists in the background. Rolls back on failure.
+  /// The buttons are disabled while an update for the entry is in flight so
+  /// rapid taps can't interleave stale values.
   Future<void> _stepAnime(AnimeListEntry e, int delta) async {
-    final next = (e.listStatus.progress + delta).clamp(0, 1 << 30);
-    try {
-      await ref
-          .read(listRepositoryProvider)
-          .updateAnimeEntry(e.anime.id, numWatchedEpisodes: next);
-      invalidateMyLists(ref);
-    } catch (err) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Update failed: $err')));
-      }
+    final id = e.anime.id;
+    if (_steppingIds.contains(id)) return;
+    final t = e.anime.numEpisodes;
+    final max = (t != null && t > 0) ? t : 1 << 30;
+    final next = (e.listStatus.progress + delta).clamp(0, max);
+    setState(() => _steppingIds.add(id));
+    final ok =
+        await ref.read(myAnimeListProvider.notifier).stepProgress(id, next);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Update failed. Please try again.')),
+      );
     }
+    if (mounted) setState(() => _steppingIds.remove(id));
   }
 
   Future<void> _stepManga(MangaListEntry e, int delta) async {
-    final next = (e.listStatus.progress + delta).clamp(0, 1 << 30);
-    try {
-      await ref
-          .read(listRepositoryProvider)
-          .updateMangaEntry(e.manga.id, numReadChapters: next);
-      invalidateMyLists(ref);
-    } catch (err) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Update failed: $err')));
-      }
+    final id = e.manga.id;
+    if (_steppingIds.contains(id)) return;
+    final t = e.manga.numChapters;
+    final max = (t != null && t > 0) ? t : 1 << 30;
+    final next = (e.listStatus.progress + delta).clamp(0, max);
+    setState(() => _steppingIds.add(id));
+    final ok =
+        await ref.read(myMangaListProvider.notifier).stepProgress(id, next);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Update failed. Please try again.')),
+      );
     }
+    if (mounted) setState(() => _steppingIds.remove(id));
   }
 }
 
-class _ListRow extends StatefulWidget {
+class _ListRow extends StatelessWidget {
   final int id;
   final String kind; // 'anime' or 'manga'
   final String? imageUrl;
@@ -484,6 +518,9 @@ class _ListRow extends StatefulWidget {
   final VoidCallback onEdit;
   final void Function(int delta) onStep;
   final bool compact;
+
+  /// True while a stepper update for this entry is in flight.
+  final bool stepping;
 
   const _ListRow({
     required this.id,
@@ -505,56 +542,31 @@ class _ListRow extends StatefulWidget {
     required this.onEdit,
     required this.onStep,
     this.compact = false,
+    this.stepping = false,
   });
-
-  @override
-  State<_ListRow> createState() => _ListRowState();
-}
-
-class _ListRowState extends State<_ListRow> {
-  Timer? _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    // Live countdown for airing anime, ticking every second.
-    if (widget.isAiring &&
-        widget.broadcastDay != null &&
-        widget.broadcastTime != null) {
-      _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-        if (mounted) setState(() {});
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final ls = widget.listStatus;
+    final ls = listStatus;
     final progress = ls.progress;
 
     return Card.filled(
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: widget.onTap,
+        onTap: onTap,
         child: Padding(
-          padding: EdgeInsets.all(widget.compact ? 6 : 10),
+          padding: EdgeInsets.all(compact ? 6 : 10),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               PosterImage(
-                url: widget.imageUrl,
-                title: widget.title,
-                width: widget.compact ? 36 : 64,
-                height: widget.compact ? 52 : 92,
-                heroTag: 'poster-${widget.kind}-${widget.id}',
+                url: imageUrl,
+                title: title,
+                width: compact ? 36 : 64,
+                height: compact ? 52 : 92,
+                heroTag: 'poster-$kind-$id',
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -564,20 +576,20 @@ class _ListRowState extends State<_ListRow> {
                     // Top row: MAL score + status badge ... user score.
                     Row(
                       children: [
-                        if (widget.mean != null) ...[
+                        if (mean != null) ...[
                           const Icon(Icons.star, size: 14, color: Colors.amber),
                           const SizedBox(width: 2),
                           Text(
-                            widget.mean!.toStringAsFixed(
-                              widget.mean! >= 10 ? 0 : 2,
+                            mean!.toStringAsFixed(
+                              mean! >= 10 ? 0 : 2,
                             ),
                             style: textTheme.labelLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          if (widget.numListUsers != null)
+                          if (numListUsers != null)
                             Text(
-                              ' (${_compactNum(widget.numListUsers!)})',
+                              ' (${_compactNum(numListUsers!)})',
                               style: textTheme.labelSmall?.copyWith(
                                 color: scheme.onSurfaceVariant,
                               ),
@@ -598,15 +610,16 @@ class _ListRowState extends State<_ListRow> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      widget.title,
+                      title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    // Airing countdown with a subtle tick pulse each second.
-                    if (widget.isAiring)
+                    // Airing countdown (minute precision; the screen-level
+                    // ticker refreshes it, so rows need no timers).
+                    if (isAiring)
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
                         child: AnimatedSwitcher(
@@ -646,7 +659,7 @@ class _ListRowState extends State<_ListRow> {
                     Row(
                       children: [
                         Text(
-                          '$progress ${widget.unit}',
+                          '$progress $unit',
                           style: textTheme.labelLarge?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -654,23 +667,27 @@ class _ListRowState extends State<_ListRow> {
                         const Spacer(),
                         _StepButton(
                           icon: Icons.add,
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            widget.onStep(1);
-                          },
+                          onTap: stepping
+                              ? null
+                              : () {
+                                  HapticFeedback.lightImpact();
+                                  onStep(1);
+                                },
                         ),
                         IconButton(
                           icon: const Icon(Icons.edit_outlined, size: 20),
-                          onPressed: widget.onEdit,
+                          onPressed: onEdit,
                           tooltip: 'Edit entry',
                           visualDensity: VisualDensity.compact,
                         ),
                         _StepButton(
                           icon: Icons.remove,
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            widget.onStep(-1);
-                          },
+                          onTap: stepping
+                              ? null
+                              : () {
+                                  HapticFeedback.lightImpact();
+                                  onStep(-1);
+                                },
                         ),
                       ],
                     ),
@@ -687,16 +704,16 @@ class _ListRowState extends State<_ListRow> {
   /// "TV (64 eps) · Action, Adventure, Drama"
   String _mediaLine() {
     final parts = <String>[];
-    final type = _prettyMediaType(widget.mediaType);
+    final type = _prettyMediaType(mediaType);
     if (type != null) {
       parts.add(
-        widget.total != null && widget.total! > 0
-            ? '$type (${widget.total} ${widget.unit})'
+        total != null && total! > 0
+            ? '$type ($total $unit'
             : type,
       );
     }
-    if (widget.genres.isNotEmpty) {
-      parts.add(widget.genres.take(3).join(', '));
+    if (genres.isNotEmpty) {
+      parts.add(genres.take(3).join(', '));
     }
     return parts.join(' · ');
   }
@@ -711,7 +728,7 @@ class _ListRowState extends State<_ListRow> {
   }
 
   int? _currentEpisode() {
-    final start = widget.airedFrom;
+    final start = airedFrom;
     if (start == null || start.length < 10) return null;
     try {
       final startDate = DateTime.parse(start.substring(0, 10));
@@ -719,8 +736,8 @@ class _ListRowState extends State<_ListRow> {
       if (now.isBefore(startDate)) return null;
       final weeks = now.difference(startDate).inDays ~/ 7;
       var ep = weeks + 1;
-      final total = widget.total;
-      if (total != null && total > 0 && ep > total) ep = total;
+      final t = total;
+      if (t != null && t > 0 && ep > t) ep = t;
       return ep > 0 ? ep : null;
     } catch (_) {
       return null;
@@ -735,15 +752,14 @@ class _ListRowState extends State<_ListRow> {
     final d = diff.inDays;
     final h = diff.inHours % 24;
     final m = diff.inMinutes % 60;
-    final s = diff.inSeconds % 60;
-    if (d > 0) return '${d}d ${h}h ${m}m ${s}s';
-    if (h > 0) return '${h}h ${m}m ${s}s';
-    return '${m}m ${s}s';
+    if (d > 0) return '${d}d ${h}h ${m}m';
+    if (h > 0) return '${h}h ${m}m';
+    return '${m}m';
   }
 
   DateTime? _nextAirDate() {
-    final day = widget.broadcastDay;
-    final time = widget.broadcastTime;
+    final day = broadcastDay;
+    final time = broadcastTime;
     if (day == null || time == null) return null;
     final weekday = _weekday(day);
     final parts = time.split(':');
@@ -843,13 +859,14 @@ class _StatusBadge extends StatelessWidget {
 
 class _StepButton extends StatelessWidget {
   final IconData icon;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _StepButton({required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final enabled = onTap != null;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
@@ -858,9 +875,17 @@ class _StepButton extends StatelessWidget {
         height: 32,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: scheme.primaryContainer,
+          color: enabled
+              ? scheme.primaryContainer
+              : scheme.surfaceContainerHighest,
         ),
-        child: Icon(icon, size: 18, color: scheme.onPrimaryContainer),
+        child: Icon(
+          icon,
+          size: 18,
+          color: enabled
+              ? scheme.onPrimaryContainer
+              : scheme.onSurfaceVariant.withValues(alpha: 0.5),
+        ),
       ),
     );
   }

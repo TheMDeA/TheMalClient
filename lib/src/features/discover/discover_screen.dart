@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -29,6 +31,14 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
   final _searchCtrl = TextEditingController();
   final _searchFocus = FocusNode();
   String _query = '';
+
+  /// Debounced query actually sent to the search providers — updated 400ms
+  /// after the user stops typing so we don't fire per keystroke.
+  String _searchQuery = '';
+  Timer? _debounce;
+
+  /// Settled Anime/Manga search tab index (drives visible-tab-only queries).
+  int _searchTabIndex = 0;
   String? _genre;
 
   /// Advanced search filters, kept separate per media kind.
@@ -48,7 +58,13 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
     _tabs = TabController(length: 3, vsync: this, initialIndex: initial);
     _searchTabs = TabController(length: 2, vsync: this);
     // Refresh the filter badge when switching between anime/manga results.
-    _searchTabs.addListener(() => setState(() {}));
+    // Only rebuild when the settled index actually changes — not on every
+    // animation frame of the swipe.
+    _searchTabs.addListener(() {
+      if (_searchTabs.index != _searchTabIndex) {
+        setState(() => _searchTabIndex = _searchTabs.index);
+      }
+    });
     if (widget.focusSearch) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _searchFocus.requestFocus();
@@ -58,11 +74,36 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _tabs.dispose();
     _searchTabs.dispose();
     _searchCtrl.dispose();
     _searchFocus.dispose();
     super.dispose();
+  }
+
+  /// Immediate UI update on each keystroke; the provider query follows after
+  /// a 400ms pause so typing "naruto" fires one search, not six.
+  void _onSearchChanged(String v) {
+    final t = v.trim();
+    setState(() => _query = t);
+    _debounce?.cancel();
+    if (t.isEmpty) {
+      setState(() => _searchQuery = '');
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      if (mounted) setState(() => _searchQuery = t);
+    });
+  }
+
+  void _clearSearch() {
+    _debounce?.cancel();
+    _searchCtrl.clear();
+    setState(() {
+      _query = '';
+      _searchQuery = '';
+    });
   }
 
   @override
@@ -84,13 +125,10 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
                         _filterButton(),
                         IconButton(
                           icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            _searchCtrl.clear();
-                            setState(() => _query = '');
-                          },
+                          onPressed: _clearSearch,
                         ),
                       ],
-                onChanged: (v) => setState(() => _query = v.trim()),
+                onChanged: _onSearchChanged,
               ),
             ),
             if (_query.isEmpty) _genreChips(),
@@ -285,18 +323,27 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
         Expanded(
           child: TabBarView(
             controller: _searchTabs,
-            children: [_animeSearchGrid(), _mangaSearchGrid()],
+            // Only the visible tab queries the network; the hidden tab
+            // builds nothing until it's swiped into view.
+            children: [
+              _animeSearchGrid(active: _searchTabIndex == 0),
+              _mangaSearchGrid(active: _searchTabIndex == 1),
+            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _animeSearchGrid() {
+  Widget _animeSearchGrid({required bool active}) {
+    // Hidden tab: build nothing (no network request) until visible.
+    if (!active) return const SizedBox.shrink();
+    // Debounce gap: query hasn't caught up with the text yet.
+    if (_searchQuery.isEmpty) return const SkeletonPosterGrid();
     final f = _animeFilters;
     final value = ref.watch(
       _animeSearchProvider((
-        q: _query,
+        q: _searchQuery,
         type: f.type,
         status: f.status,
         rating: f.rating,
@@ -322,11 +369,15 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
     );
   }
 
-  Widget _mangaSearchGrid() {
+  Widget _mangaSearchGrid({required bool active}) {
+    // Hidden tab: build nothing (no network request) until visible.
+    if (!active) return const SizedBox.shrink();
+    // Debounce gap: query hasn't caught up with the text yet.
+    if (_searchQuery.isEmpty) return const SkeletonPosterGrid();
     final f = _mangaFilters;
     final value = ref.watch(
       _mangaSearchProvider((
-        q: _query,
+        q: _searchQuery,
         type: f.type,
         status: f.status,
         genres: f.genreIdsParam,
