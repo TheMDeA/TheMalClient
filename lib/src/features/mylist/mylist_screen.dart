@@ -873,6 +873,7 @@ Future<void> showEditEntrySheet(
   required MyListStatus status,
   required int? total,
   bool isNew = false,
+  VoidCallback? onSaved,
 }) {
   final isAnime = kind == ListKind.anime;
   final statuses = isAnime ? AnimeListStatuses.all : MangaListStatuses.all;
@@ -998,6 +999,7 @@ Future<void> showEditEntrySheet(
               );
             }
             invalidateMyLists(ref);
+            onSaved?.call();
             if (context.mounted) Navigator.of(context).pop();
           } catch (e) {
             if (context.mounted) {

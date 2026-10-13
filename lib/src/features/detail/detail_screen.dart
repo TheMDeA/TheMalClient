@@ -231,6 +231,8 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
       status: mls,
       total: widget.detail.numEpisodes,
       isNew: widget.detail.myListStatus == null,
+      // Refresh the header pill (and everything else) right after saving.
+      onSaved: () => ref.invalidate(_animeDetailProvider(widget.detail.id)),
     );
   }
 
