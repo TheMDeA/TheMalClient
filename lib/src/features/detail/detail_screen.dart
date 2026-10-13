@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:palette_generator/palette_generator.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:malclient/src/core/providers.dart';
@@ -62,6 +63,28 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
 
 final _animeDetailProvider = FutureProvider.family<AnimeDetail, int>((ref, id) {
   return ref.watch(mediaRepositoryProvider).animeDetail(id);
+});
+
+/// Dominant poster color used to tint the detail banner scrim. Null when
+/// the poster is missing or the palette can't be extracted. Keyed by image
+/// URL so it survives rebuilds; the decoded image is shared with the
+/// banner's own [Image.network] through the image cache.
+final _posterTintProvider =
+    FutureProvider.family<Color?, String>((ref, url) async {
+  try {
+    final palette = await PaletteGenerator.fromImageProvider(
+      NetworkImage(url),
+      size: const Size(120, 180),
+      maximumColorCount: 8,
+    ).timeout(const Duration(seconds: 10));
+    final c = palette.dominantColor?.color;
+    if (c == null) return null;
+    // Deepen the color so the scrim stays rich, never neon.
+    final hsl = HSLColor.fromColor(c);
+    return hsl.withLightness((hsl.lightness * 0.6).clamp(0.15, 0.6)).toColor();
+  } catch (_) {
+    return null;
+  }
 });
 
 class _DetailBody extends ConsumerStatefulWidget {
@@ -330,7 +353,7 @@ class _TabBarHeaderDelegate extends SliverPersistentHeaderDelegate {
 /// Detail header: full-bleed banner (poster cover-cropped) with gradient,
 /// overlaid navigation/actions, title and language switcher — then the
 /// stats row and info grid below.
-class _DetailHeader extends StatelessWidget {
+class _DetailHeader extends ConsumerWidget {
   final AnimeDetail detail;
   final String kind;
   final int titleLang;
@@ -358,10 +381,17 @@ class _DetailHeader extends StatelessWidget {
       };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final d = detail;
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+
+    // Poster tint for the banner scrim; falls back to plain black.
+    final url = d.imageUrl;
+    final tintAsync = (url != null && url.isNotEmpty)
+        ? ref.watch(_posterTintProvider(url))
+        : const AsyncValue<Color?>.data(null);
+    final tint = tintAsync.maybeWhen(data: (c) => c, orElse: () => null);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -374,7 +404,8 @@ class _DetailHeader extends StatelessWidget {
             children: [
               _bannerImage(context, d),
               // Legibility gradients: top for the buttons, bottom for title.
-              const DecoratedBox(
+              // The bottom scrim carries the poster's dominant color.
+              DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
@@ -383,9 +414,13 @@ class _DetailHeader extends StatelessWidget {
                       Colors.black54,
                       Colors.transparent,
                       Colors.transparent,
+                      if (tint != null)
+                        tint.withValues(alpha: 0.55)
+                      else
+                        Colors.transparent,
                       Colors.black87,
                     ],
-                    stops: [0.0, 0.3, 0.55, 1.0],
+                    stops: const [0.0, 0.3, 0.55, 0.8, 1.0],
                   ),
                 ),
               ),
