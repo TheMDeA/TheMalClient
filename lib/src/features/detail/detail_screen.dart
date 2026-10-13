@@ -988,40 +988,44 @@ class _CharactersTab extends ConsumerWidget {
           itemCount: items.length,
           itemBuilder: (_, i) {
             final c = items[i];
-            return Column(
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: PosterImage(
-                      url: c.imageUrl,
-                      title: c.name,
+            return InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => context.push('/detail/character/${c.malId}'),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
+                      child: PosterImage(
+                        url: c.imageUrl,
+                        title: c.name,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  c.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.bold,
+                  const SizedBox(height: 4),
+                  Text(
+                    c.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
-                ),
-                Text(
-                  c.role.isNotEmpty
-                      ? c.role
-                      : (c.voiceActors.isNotEmpty ? c.voiceActors.first : ''),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: textTheme.labelSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  Text(
+                    c.role.isNotEmpty
+                        ? c.role
+                        : (c.voiceActors.isNotEmpty ? c.voiceActors.first : ''),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.labelSmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+                ],
+              ),
             );
           },
         );
@@ -1123,44 +1127,48 @@ class _StaffTab extends ConsumerWidget {
           itemBuilder: (_, i) {
             final s = items[i];
             return Card.filled(
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: PosterImage(
-                        url: s.imageUrl,
-                        title: s.name,
-                        width: 48,
-                        height: 68,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => context.push('/detail/staff/${s.malId}'),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Row(
+                    children: [
+                      ClipRRect(
                         borderRadius: BorderRadius.circular(8),
+                        child: PosterImage(
+                          url: s.imageUrl,
+                          title: s.name,
+                          width: 48,
+                          height: 68,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            s.name,
-                            style: textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          if (s.positions.isNotEmpty)
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             Text(
-                              s.positions.take(3).join(', '),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: textTheme.bodySmall?.copyWith(
-                                color: scheme.onSurfaceVariant,
+                              s.name,
+                              style: textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                        ],
+                            if (s.positions.isNotEmpty)
+                              Text(
+                                s.positions.take(3).join(', '),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             );

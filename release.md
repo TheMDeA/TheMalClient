@@ -1,10 +1,5 @@
-# MyAL v1.2.4
+# MyAL v1.2.5
 
-- App renamed to MyAL (new name, same fox)
-- Detail airing countdown now shows the latest aired and upcoming episode ("Ep 2 aired • Ep 3 Fri 22:00 • in 3d 1h 14m")
-- Schedule rows now show the upcoming episode number ("Ep 3 in 5d 2h 35m")
-- "Open in MyAnimeList" and "Share" buttons in the detail menu now work
-- Media tab is now a real picture gallery (fullscreen viewer with pinch-to-zoom)
-- Pull-to-refresh on Discover, Schedule, and Detail
-- Fixed schedule countdowns drifting by the timezone gap (MAL broadcast times are JST)
-- Fixed episode numbers never appearing on the detail page (start date was dropped from the detail data)
+- New character pages: photo, about bio, favorites, and a tappable animeography grid
+- New staff pages: photo, biography, birthday, and a works grid with their positions
+- Character and staff cards are now tappable (they did nothing before)
