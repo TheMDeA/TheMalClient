@@ -72,6 +72,7 @@ class _DetailBody extends ConsumerStatefulWidget {
 class _DetailBodyState extends ConsumerState<_DetailBody>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
+  late final ScrollController _outerScroll;
 
   /// Title language: 0 = default, 1 = English, 2 = Japanese.
   int _titleLang = 0;
@@ -93,11 +94,13 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
     // Anime: 7 tabs (Synopsis, Characters, Staff, Media, Related, Reviews, More Info).
     // Manga: 6 tabs (no Staff — Jikan has no manga staff endpoint).
     _tabs = TabController(length: _isAnime ? 7 : 6, vsync: this);
+    _outerScroll = ScrollController();
   }
 
   @override
   void dispose() {
     _tabs.dispose();
+    _outerScroll.dispose();
     super.dispose();
   }
 
@@ -105,68 +108,56 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
   Widget build(BuildContext context) {
     final d = widget.detail;
 
-    // Header content height: poster block (235) + optional countdown chip.
-    final headerContentHeight =
-        235.0 + ((d.isAiring && d.broadcastDay != null) ? 56.0 : 0.0);
     return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          _displayTitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: 'Search',
+            onPressed: () => context.push('/discover'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.more_vert),
+            tooltip: 'More',
+            onPressed: () => _showMoreSheet(context, d),
+          ),
+        ],
+      ),
       body: NestedScrollView(
+        controller: _outerScroll,
         headerSliverBuilder: (context, innerScrolled) => [
-          SliverAppBar(
-            pinned: true,
-            expandedHeight: kToolbarHeight + headerContentHeight + 48.0,
-            title: Text(
-              _displayTitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.search),
-                tooltip: 'Search',
-                onPressed: () => context.push('/discover'),
-              ),
-              IconButton(
-                icon: const Icon(Icons.more_vert),
-                tooltip: 'More',
-                onPressed: () => _showMoreSheet(context, d),
-              ),
-            ],
-            flexibleSpace: FlexibleSpaceBar(
-              collapseMode: CollapseMode.parallax,
-              background: SafeArea(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    _DetailHeader(
-                      detail: d,
-                      kind: _isAnime ? 'anime' : 'manga',
-                      titleLang: _titleLang,
-                      onTitleLangChanged: (v) => setState(() => _titleLang = v),
-                      onInfoTap: () => _tabs.animateTo(_isAnime ? 6 : 5),
-                      onBookmarkTap: () => _openEditSheet(context),
+          // Auto-sizes to its content: no hardcoded height, so the
+          // countdown chip can never overlap the tab bar.
+          SliverToBoxAdapter(
+            child: _ParallaxHeader(
+              controller: _outerScroll,
+              child: Column(
+                children: [
+                  _DetailHeader(
+                    detail: d,
+                    kind: _isAnime ? 'anime' : 'manga',
+                    titleLang: _titleLang,
+                    onTitleLangChanged: (v) => setState(() => _titleLang = v),
+                    onInfoTap: () => _tabs.animateTo(_isAnime ? 6 : 5),
+                    onBookmarkTap: () => _openEditSheet(context),
+                  ),
+                  if (d.isAiring && d.broadcastDay != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: _CountdownChip(detail: d),
                     ),
-                    if (d.isAiring && d.broadcastDay != null)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                        child: _CountdownChip(detail: d),
-                      ),
-                  ],
-                ),
+                ],
               ),
             ),
-            bottom: TabBar(
-              controller: _tabs,
-              isScrollable: true,
-              tabs: [
-                const Tab(text: 'Synopsis'),
-                const Tab(text: 'Characters'),
-                if (_isAnime) const Tab(text: 'Staff'),
-                const Tab(text: 'Media'),
-                const Tab(text: 'Related'),
-                const Tab(text: 'Reviews'),
-                const Tab(text: 'More Info'),
-              ],
-            ),
+          ),
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _TabBarHeaderDelegate(_tabs, _isAnime),
           ),
         ],
         body: TabBarView(
@@ -238,6 +229,76 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
       ),
     );
   }
+}
+
+
+/// Wraps the detail header and applies a parallax drift + fade as the
+/// outer scroll view collapses it. Lives in a [SliverToBoxAdapter] so it
+/// always sizes to its content — no hardcoded heights, no overlap.
+class _ParallaxHeader extends StatelessWidget {
+  final ScrollController controller;
+  final Widget child;
+
+  const _ParallaxHeader({required this.controller, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        final offset =
+            controller.hasClients ? controller.offset : 0.0;
+        // Drift slower than the scroll (parallax) and fade out.
+        return Transform.translate(
+          offset: Offset(0, offset * 0.35),
+          child: Opacity(
+            opacity: (1 - offset / 320).clamp(0.0, 1.0),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Pinned tab bar below the collapsing header.
+class _TabBarHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final TabController controller;
+  final bool isAnime;
+
+  _TabBarHeaderDelegate(this.controller, this.isAnime);
+
+  @override
+  double get minExtent => 48;
+
+  @override
+  double get maxExtent => 48;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: TabBar(
+        controller: controller,
+        isScrollable: true,
+        tabs: [
+          const Tab(text: 'Synopsis'),
+          const Tab(text: 'Characters'),
+          if (isAnime) const Tab(text: 'Staff'),
+          const Tab(text: 'Media'),
+          const Tab(text: 'Related'),
+          const Tab(text: 'Reviews'),
+          const Tab(text: 'More Info'),
+        ],
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _TabBarHeaderDelegate oldDelegate) =>
+      oldDelegate.controller != controller ||
+      oldDelegate.isAnime != isAnime;
 }
 
 /// Detail header: poster on the left, info panel on the right (DailyAL style).
