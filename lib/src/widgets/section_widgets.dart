@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:malclient/src/widgets/poster_card.dart';
+import 'package:malclient/src/widgets/entrance.dart';
 
 /// "Section title            ->" row, DailyAL-style.
 class SectionHeader extends StatelessWidget {
@@ -18,8 +19,9 @@ class SectionHeader extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: textTheme.headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.bold),
+              style: textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           if (onSeeAll != null)
@@ -49,7 +51,7 @@ class PosterRail extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: cards.length,
         separatorBuilder: (_, _) => const SizedBox(width: 12),
-        itemBuilder: (_, i) => cards[i],
+        itemBuilder: (_, i) => Entrance(index: i, child: cards[i]),
       ),
     );
   }
@@ -60,8 +62,11 @@ class AsyncSection extends StatelessWidget {
   final Object? error;
   final VoidCallback onRetry;
 
-  const AsyncSection.error(
-      {super.key, required this.error, required this.onRetry});
+  const AsyncSection.error({
+    super.key,
+    required this.error,
+    required this.onRetry,
+  });
 
   @override
   Widget build(BuildContext context) {

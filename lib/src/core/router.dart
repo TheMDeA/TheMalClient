@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:malclient/src/core/providers.dart';
@@ -30,6 +30,36 @@ class _AuthRefreshListenable extends ChangeNotifier {
   }
 }
 
+/// Shared page transition: fade + slight slide-up, used for pushed routes
+/// (detail, settings, news, history) so navigation feels designed rather
+/// than the platform default.
+CustomTransitionPage<T> _fadeSlidePage<T>(
+  BuildContext context,
+  GoRouterState state,
+  Widget child,
+) {
+  return CustomTransitionPage<T>(
+    key: state.pageKey,
+    child: child,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final fade = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+      );
+      final slide = Tween<Offset>(
+        begin: const Offset(0, 0.06),
+        end: Offset.zero,
+      ).animate(fade);
+      return FadeTransition(
+        opacity: fade,
+        child: SlideTransition(position: slide, child: child),
+      );
+    },
+    transitionDuration: const Duration(milliseconds: 280),
+    reverseTransitionDuration: const Duration(milliseconds: 220),
+  );
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/login',
@@ -46,8 +76,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (authValue.isLoading || authValue.hasError) return null;
       final auth = authValue.value;
       final status = auth?.status ?? AuthStatus.loggedOut;
-      final loggedIn = status == AuthStatus.authenticated ||
-          status == AuthStatus.demo;
+      final loggedIn =
+          status == AuthStatus.authenticated || status == AuthStatus.demo;
       final loc = state.matchedLocation;
       final onLogin = loc == '/login';
       final onWelcome = loc == '/welcome';
@@ -67,18 +97,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
-      ),
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/welcome',
         builder: (context, state) => const WelcomeScreen(),
       ),
-      GoRoute(
-        path: '/setup',
-        builder: (context, state) => const SetupScreen(),
-      ),
+      GoRoute(path: '/setup', builder: (context, state) => const SetupScreen()),
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => AppShell(shell: shell),
         branches: [
@@ -132,41 +156,55 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/detail/anime/:id',
-        builder: (context, state) => DetailScreen(
-          kind: ListKind.anime,
-          id: int.parse(state.pathParameters['id']!),
+        pageBuilder: (context, state) => _fadeSlidePage(
+          context,
+          state,
+          DetailScreen(
+            kind: ListKind.anime,
+            id: int.parse(state.pathParameters['id']!),
+          ),
         ),
       ),
       GoRoute(
         path: '/detail/manga/:id',
-        builder: (context, state) => DetailScreen(
-          kind: ListKind.manga,
-          id: int.parse(state.pathParameters['id']!),
+        pageBuilder: (context, state) => _fadeSlidePage(
+          context,
+          state,
+          DetailScreen(
+            kind: ListKind.manga,
+            id: int.parse(state.pathParameters['id']!),
+          ),
         ),
       ),
       GoRoute(
         path: '/settings',
-        builder: (context, state) => const SettingsScreen(),
+        pageBuilder: (context, state) =>
+            _fadeSlidePage(context, state, const SettingsScreen()),
       ),
       GoRoute(
         path: '/settings/theme',
-        builder: (context, state) => const ThemeSettingsScreen(),
+        pageBuilder: (context, state) =>
+            _fadeSlidePage(context, state, const ThemeSettingsScreen()),
       ),
       GoRoute(
         path: '/settings/list',
-        builder: (context, state) => const ListPreferencesScreen(),
+        pageBuilder: (context, state) =>
+            _fadeSlidePage(context, state, const ListPreferencesScreen()),
       ),
       GoRoute(
         path: '/settings/about',
-        builder: (context, state) => const AboutScreen(),
+        pageBuilder: (context, state) =>
+            _fadeSlidePage(context, state, const AboutScreen()),
       ),
       GoRoute(
         path: '/history',
-        builder: (context, state) => const HistoryScreen(),
+        pageBuilder: (context, state) =>
+            _fadeSlidePage(context, state, const HistoryScreen()),
       ),
       GoRoute(
         path: '/news',
-        builder: (context, state) => const NewsScreen(),
+        pageBuilder: (context, state) =>
+            _fadeSlidePage(context, state, const NewsScreen()),
       ),
     ],
   );
