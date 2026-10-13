@@ -1,4 +1,5 @@
 # MyAL v1.2.8
+- Material You dynamic colors: optional system wallpaper colors (Android 12+) in Theme Settings, replacing the accent presets when on
 
 - Performance batch: News screen loads ~5x faster (parallel requests)
 - My List: one shared ticker instead of a timer per row, minute-precision countdowns

@@ -3,6 +3,7 @@
 All notable changes to MALClient (Flutter rewrite) are documented here.
 
 ## [1.2.8] - 2026-10-14
+- Material You dynamic colors: optional system wallpaper colors (Android 12+) in Theme Settings, replacing the accent presets when on
 
 - Performance batch: News screen loads ~5x faster (parallel requests instead of 12 sequential with delays)
 - My List no longer runs a timer per row — one shared ticker, countdowns now minute-precision
