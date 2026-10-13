@@ -622,26 +622,11 @@ class _ListRow extends StatelessWidget {
                     if (isAiring)
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 300),
-                          transitionBuilder: (child, animation) =>
-                              ScaleTransition(
-                                scale: Tween<double>(
-                                  begin: 0.92,
-                                  end: 1.0,
-                                ).animate(animation),
-                                child: FadeTransition(
-                                  opacity: animation,
-                                  child: child,
-                                ),
-                              ),
-                          child: Text(
-                            _airingLine(),
-                            key: ValueKey(_airingLine()),
-                            style: textTheme.labelMedium?.copyWith(
-                              color: scheme.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
+                        child: Text(
+                          _airingLine(),
+                          style: textTheme.labelMedium?.copyWith(
+                            color: scheme.primary,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
