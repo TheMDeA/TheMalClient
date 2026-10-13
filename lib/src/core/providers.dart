@@ -223,6 +223,79 @@ class AppFontNotifier extends Notifier<String> {
   }
 }
 
+/// Start/end date auto-setters for list entries.
+///
+/// When enabled, saving an entry with a given status automatically stamps
+/// the start/finish date with today. If [allowOverride] is on, a manually
+/// chosen date is never overwritten — the auto-setter only fills empty dates.
+class DateAutoSet {
+  final bool startOnAdd;
+  final bool startOnWatching;
+  final bool endOnCompleted;
+  final bool endOnDropped;
+  final bool allowOverride;
+
+  const DateAutoSet({
+    this.startOnAdd = false,
+    this.startOnWatching = false,
+    this.endOnCompleted = false,
+    this.endOnDropped = false,
+    this.allowOverride = false,
+  });
+
+  DateAutoSet copyWith({
+    bool? startOnAdd,
+    bool? startOnWatching,
+    bool? endOnCompleted,
+    bool? endOnDropped,
+    bool? allowOverride,
+  }) =>
+      DateAutoSet(
+        startOnAdd: startOnAdd ?? this.startOnAdd,
+        startOnWatching: startOnWatching ?? this.startOnWatching,
+        endOnCompleted: endOnCompleted ?? this.endOnCompleted,
+        endOnDropped: endOnDropped ?? this.endOnDropped,
+        allowOverride: allowOverride ?? this.allowOverride,
+      );
+}
+
+final dateAutoSetProvider =
+    NotifierProvider<DateAutoSetNotifier, DateAutoSet>(
+        DateAutoSetNotifier.new);
+
+class DateAutoSetNotifier extends Notifier<DateAutoSet> {
+  static const _p = 'date_auto_';
+
+  @override
+  DateAutoSet build() {
+    final prefs = ref.watch(sharedPrefsProvider);
+    return DateAutoSet(
+      startOnAdd: prefs.getBool('${_p}start_on_add') ?? false,
+      startOnWatching: prefs.getBool('${_p}start_on_watching') ?? false,
+      endOnCompleted: prefs.getBool('${_p}end_on_completed') ?? false,
+      endOnDropped: prefs.getBool('${_p}end_on_dropped') ?? false,
+      allowOverride: prefs.getBool('${_p}allow_override') ?? false,
+    );
+  }
+
+  Future<void> _set(String key, bool value,
+      DateAutoSet Function(DateAutoSet) apply) async {
+    state = apply(state);
+    await ref.read(sharedPrefsProvider).setBool('$_p$key', value);
+  }
+
+  Future<void> setStartOnAdd(bool v) =>
+      _set('start_on_add', v, (s) => s.copyWith(startOnAdd: v));
+  Future<void> setStartOnWatching(bool v) => _set(
+      'start_on_watching', v, (s) => s.copyWith(startOnWatching: v));
+  Future<void> setEndOnCompleted(bool v) =>
+      _set('end_on_completed', v, (s) => s.copyWith(endOnCompleted: v));
+  Future<void> setEndOnDropped(bool v) =>
+      _set('end_on_dropped', v, (s) => s.copyWith(endOnDropped: v));
+  Future<void> setAllowOverride(bool v) =>
+      _set('allow_override', v, (s) => s.copyWith(allowOverride: v));
+}
+
 // ---------- feature data ----------
 
 final seasonalAnimeProvider = FutureProvider<List<AnimeSummary>>((ref) {

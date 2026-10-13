@@ -355,32 +355,105 @@ Future<void> showEditEntrySheet(
   required String title,
   required MyListStatus status,
   required int? total,
+  bool isNew = false,
 }) {
-  final statuses =
-      kind == ListKind.anime ? AnimeListStatuses.all : MangaListStatuses.all;
-  String statusLabel(String s) => kind == ListKind.anime
-      ? AnimeListStatuses.label(s)
-      : MangaListStatuses.label(s);
+  final isAnime = kind == ListKind.anime;
+  final statuses = isAnime ? AnimeListStatuses.all : MangaListStatuses.all;
+  String statusLabel(String s) =>
+      isAnime ? AnimeListStatuses.label(s) : MangaListStatuses.label(s);
+  final rewatchNoun = isAnime ? 'Rewatch' : 'Reread';
+  final progressNoun = isAnime ? 'Episodes' : 'Chapters';
+  final originalStatus = status.status;
 
   var newStatus = status.status;
   var newScore = status.score;
   var newProgress = status.progress;
+  var newRewatching = status.isRewatching;
+  var newTimesRewatched = status.timesRewatched;
+  var newRewatchValue = status.rewatchValue;
+  var newStartDate = status.startDate;
+  var newFinishDate = status.finishDate;
+  var newPriority = status.priority;
+  final commentsCtrl = TextEditingController(text: status.comments);
+
+  const rewatchLabels = ['—', 'Very Low', 'Low', 'Medium', 'High', 'Very High'];
+  const priorityLabels = ['Low', 'Medium', 'High'];
+
+  String fmtDate(String? ymd) {
+    if (ymd == null || ymd.isEmpty) return 'Select';
+    final dt = DateTime.tryParse(ymd);
+    if (dt == null) return ymd;
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  }
 
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     builder: (sheetContext) => StatefulBuilder(
       builder: (context, setSheetState) {
-        final scheme = Theme.of(context).colorScheme;
+        final theme = Theme.of(context);
+        final scheme = theme.colorScheme;
+
         Future<void> save() async {
           try {
+            // Apply start/end date auto-setters from Settings.
+            final autoSet = ref.read(dateAutoSetProvider);
+            final now = DateTime.now();
+            final today =
+                '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+            // When "allow override" is on, a manually chosen date is never
+            // overwritten — the auto-setter only fills empty dates.
+            String? autoDate(String? current) {
+              if (autoSet.allowOverride &&
+                  current != null &&
+                  current.isNotEmpty) {
+                return current;
+              }
+              return today;
+            }
+
+            final watchingStatus = isAnime
+                ? AnimeListStatuses.watching
+                : MangaListStatuses.reading;
+            final statusChanged = newStatus != originalStatus;
+
+            if (isNew && autoSet.startOnAdd) {
+              newStartDate = autoDate(newStartDate);
+            }
+            if (statusChanged &&
+                newStatus == watchingStatus &&
+                autoSet.startOnWatching) {
+              newStartDate = autoDate(newStartDate);
+            }
+            if (statusChanged &&
+                newStatus == 'completed' &&
+                autoSet.endOnCompleted) {
+              newFinishDate = autoDate(newFinishDate);
+            }
+            if (statusChanged &&
+                newStatus == 'dropped' &&
+                autoSet.endOnDropped) {
+              newFinishDate = autoDate(newFinishDate);
+            }
+
             final repo = ref.read(listRepositoryProvider);
-            if (kind == ListKind.anime) {
+            if (isAnime) {
               await repo.updateAnimeEntry(
                 id,
                 status: newStatus,
                 score: newScore,
                 numWatchedEpisodes: newProgress,
+                isRewatching: newRewatching,
+                numTimesRewatched: newTimesRewatched,
+                rewatchValue: newRewatchValue,
+                priority: newPriority,
+                comments: commentsCtrl.text,
+                startDate: newStartDate,
+                finishDate: newFinishDate,
               );
             } else {
               await repo.updateMangaEntry(
@@ -388,6 +461,13 @@ Future<void> showEditEntrySheet(
                 status: newStatus,
                 score: newScore,
                 numReadChapters: newProgress,
+                isRereading: newRewatching,
+                numTimesReread: newTimesRewatched,
+                rereadValue: newRewatchValue,
+                priority: newPriority,
+                comments: commentsCtrl.text,
+                startDate: newStartDate,
+                finishDate: newFinishDate,
               );
             }
             invalidateMyLists(ref);
@@ -400,6 +480,67 @@ Future<void> showEditEntrySheet(
           }
         }
 
+        Future<void> pickDate(bool isStart) async {
+          final cur = isStart ? newStartDate : newFinishDate;
+          final initial = DateTime.tryParse(cur ?? '') ?? DateTime.now();
+          final picked = await showDatePicker(
+            context: context,
+            initialDate: initial,
+            firstDate: DateTime(1970),
+            lastDate: DateTime(2100),
+          );
+          if (picked != null) {
+            final ymd =
+                '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+            setSheetState(() {
+              if (isStart) {
+                newStartDate = ymd;
+              } else {
+                newFinishDate = ymd;
+              }
+            });
+          }
+        }
+
+        Widget pill({
+          required String label,
+          required bool selected,
+          required VoidCallback onTap,
+        }) {
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(label),
+              selected: selected,
+              onSelected: (_) => onTap(),
+              showCheckmark: false,
+              selectedColor: scheme.primaryContainer,
+              labelStyle: TextStyle(
+                color: selected
+                    ? scheme.onPrimaryContainer
+                    : scheme.onSurfaceVariant,
+                fontWeight:
+                    selected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          );
+        }
+
+        Widget sectionTitle(String text) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                text,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            );
+
+        // Episode/chapter pills: window around current value.
+        final epStart = (newProgress - 4).clamp(0, 1 << 30);
+        final epEnd =
+            (total != null && total > 0) ? total : newProgress + 8;
+
         return Padding(
           padding: EdgeInsets.only(
             left: 20,
@@ -407,139 +548,341 @@ Future<void> showEditEntrySheet(
             top: 8,
             bottom: MediaQuery.of(context).viewInsets.bottom + 24,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                title,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(fontWeight: FontWeight.bold),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 16),
-              Text('Status', style: Theme.of(context).textTheme.labelLarge),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                initialValue: statuses.contains(newStatus)
-                    ? newStatus
-                    : statuses.first,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-                items: [
-                  for (final s in statuses)
-                    DropdownMenuItem(value: s, child: Text(statusLabel(s))),
-                ],
-                onChanged: (v) =>
-                    setSheetState(() => newStatus = v ?? newStatus),
-              ),
-              const SizedBox(height: 16),
-              Row(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.85,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('Score',
-                      style: Theme.of(context).textTheme.labelLarge),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: scheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '$newScore',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: scheme.onPrimaryContainer,
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: scheme.outlineVariant,
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                   ),
-                ],
-              ),
-              Slider(
-                value: newScore.toDouble(),
-                min: 0,
-                max: 10,
-                divisions: 10,
-                label: '$newScore',
-                onChanged: (v) =>
-                    setSheetState(() => newScore = v.round()),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
                   Text(
-                    kind == ListKind.anime ? 'Episodes watched' : 'Chapters read',
-                    style: Theme.of(context).textTheme.labelLarge,
+                    title,
+                    style: theme.textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const Spacer(),
-                  _StepButton(
-                    icon: Icons.remove,
-                    onTap: () => setSheetState(
-                        () => newProgress = (newProgress - 1).clamp(0, 1 << 30)),
+                  const SizedBox(height: 16),
+
+                  // ---------- Your List Status ----------
+                  Text(
+                    'Your List Status',
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.bold),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      total != null && total > 0
-                          ? '$newProgress / $total'
-                          : '$newProgress',
-                      style: Theme.of(context).textTheme.titleMedium,
+                  const SizedBox(height: 12),
+                  sectionTitle('Status'),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (final s in statuses)
+                          pill(
+                            label: statusLabel(s),
+                            selected: newStatus == s,
+                            onTap: () =>
+                                setSheetState(() => newStatus = s),
+                          ),
+                      ],
                     ),
                   ),
-                  _StepButton(
-                    icon: Icons.add,
-                    onTap: () => setSheetState(
-                        () => newProgress = (newProgress + 1).clamp(0, 1 << 30)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        final repo = ref.read(listRepositoryProvider);
-                        try {
-                          if (kind == ListKind.anime) {
-                            await repo.deleteAnimeEntry(id);
-                          } else {
-                            await repo.deleteMangaEntry(id);
-                          }
-                          invalidateMyLists(ref);
-                          if (context.mounted) Navigator.of(context).pop();
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Delete failed: $e')),
-                            );
-                          }
-                        }
-                      },
-                      icon: const Icon(Icons.delete_outline),
-                      label: const Text('Remove'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: scheme.error,
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Text('$progressNoun Seen',
+                          style: theme.textTheme.labelLarge),
+                      const Spacer(),
+                      _StepButton(
+                        icon: Icons.remove,
+                        onTap: () => setSheetState(() => newProgress =
+                            (newProgress - 1).clamp(0, 1 << 30)),
                       ),
+                      _StepButton(
+                        icon: Icons.add,
+                        onTap: () => setSheetState(() => newProgress =
+                            (newProgress + 1).clamp(0, 1 << 30)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 48,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: (epEnd - epStart).clamp(0, 500),
+                      itemBuilder: (context, i) {
+                        final n = epStart + i;
+                        return pill(
+                          label: '$n',
+                          selected: n == newProgress,
+                          onTap: () =>
+                              setSheetState(() => newProgress = n),
+                        );
+                      },
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: save,
-                      child: const Text('Save'),
+                  const SizedBox(height: 16),
+                  sectionTitle('Score · Select a rating'),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (var s = 0; s <= 10; s++)
+                          pill(
+                            label: s == 0 ? '—' : '$s',
+                            selected: newScore == s,
+                            onTap: () =>
+                                setSheetState(() => newScore = s),
+                          ),
+                      ],
                     ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // ---------- Rewatch Status ----------
+                  ExpansionTile(
+                    tilePadding: EdgeInsets.zero,
+                    title: Text(
+                      '$rewatchNoun Status',
+                      style: theme.textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                Text('$rewatchNoun ing',
+                                    style: theme.textTheme.labelLarge),
+                                const SizedBox(height: 4),
+                                Switch(
+                                  value: newRewatching,
+                                  onChanged: (v) => setSheetState(
+                                      () => newRewatching = v),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                Text('Times $rewatchNoun ed',
+                                    style: theme.textTheme.labelLarge),
+                                const SizedBox(height: 4),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    _StepButton(
+                                      icon: Icons.remove,
+                                      onTap: () => setSheetState(() =>
+                                          newTimesRewatched =
+                                              (newTimesRewatched - 1)
+                                                  .clamp(0, 1 << 30)),
+                                    ),
+                                    Padding(
+                                      padding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 8),
+                                      child: Text('$newTimesRewatched',
+                                          style: theme
+                                              .textTheme.titleMedium),
+                                    ),
+                                    _StepButton(
+                                      icon: Icons.add,
+                                      onTap: () => setSheetState(() =>
+                                          newTimesRewatched =
+                                              (newTimesRewatched + 1)
+                                                  .clamp(0, 1 << 30)),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      sectionTitle('$rewatchNoun Value'),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            for (var v = 0; v <= 5; v++)
+                              pill(
+                                label: rewatchLabels[v],
+                                selected: newRewatchValue == v,
+                                onTap: () => setSheetState(
+                                    () => newRewatchValue = v),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+
+                  // ---------- Dates & Priority ----------
+                  ExpansionTile(
+                    tilePadding: EdgeInsets.zero,
+                    title: Text(
+                      'Dates & Priority',
+                      style: theme.textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                sectionTitle('Start Date'),
+                                OutlinedButton.icon(
+                                  onPressed: () => pickDate(true),
+                                  icon: const Icon(
+                                      Icons.calendar_today,
+                                      size: 16),
+                                  label: Text(fmtDate(newStartDate)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                sectionTitle('Finish Date'),
+                                OutlinedButton.icon(
+                                  onPressed: () => pickDate(false),
+                                  icon: const Icon(
+                                      Icons.calendar_today,
+                                      size: 16),
+                                  label: Text(fmtDate(newFinishDate)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                sectionTitle('Priority'),
+                                SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    children: [
+                                      for (var pr = 0;
+                                          pr <= 2;
+                                          pr++)
+                                        pill(
+                                          label: priorityLabels[pr],
+                                          selected:
+                                              newPriority == pr,
+                                          onTap: () => setSheetState(
+                                              () =>
+                                                  newPriority = pr),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+
+                  // ---------- Others ----------
+                  ExpansionTile(
+                    tilePadding: EdgeInsets.zero,
+                    title: Text(
+                      'Others',
+                      style: theme.textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    children: [
+                      sectionTitle('Comments'),
+                      TextField(
+                        controller: commentsCtrl,
+                        maxLines: 3,
+                        decoration: const InputDecoration(
+                          hintText: 'Type comments here..',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final repo =
+                                ref.read(listRepositoryProvider);
+                            try {
+                              if (isAnime) {
+                                await repo.deleteAnimeEntry(id);
+                              } else {
+                                await repo.deleteMangaEntry(id);
+                              }
+                              invalidateMyLists(ref);
+                              if (context.mounted) {
+                                Navigator.of(context).pop();
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context)
+                                    .showSnackBar(SnackBar(
+                                        content: Text(
+                                            'Delete failed: $e')));
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.delete_outline),
+                          label: const Text('Remove'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: scheme.error,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: save,
+                          child: const Text('Save'),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
         );
       },

@@ -68,6 +68,60 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 20),
+          Text('List dates',
+              style:
+                  textTheme.titleSmall?.copyWith(color: scheme.primary)),
+          const SizedBox(height: 8),
+          Card.filled(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _DateAutoSetHeader(),
+                _DateAutoSetTile(
+                  label: 'Set to today when adding to list.',
+                  group: 'Start date:',
+                  value: ref.watch(dateAutoSetProvider).startOnAdd,
+                  onChanged: (v) => ref
+                      .read(dateAutoSetProvider.notifier)
+                      .setStartOnAdd(v),
+                ),
+                _DateAutoSetTile(
+                  label: 'Set to today when setting watching status.',
+                  group: null,
+                  value: ref.watch(dateAutoSetProvider).startOnWatching,
+                  onChanged: (v) => ref
+                      .read(dateAutoSetProvider.notifier)
+                      .setStartOnWatching(v),
+                ),
+                _DateAutoSetTile(
+                  label: 'Set to today when setting completed status.',
+                  group: 'End date:',
+                  value: ref.watch(dateAutoSetProvider).endOnCompleted,
+                  onChanged: (v) => ref
+                      .read(dateAutoSetProvider.notifier)
+                      .setEndOnCompleted(v),
+                ),
+                _DateAutoSetTile(
+                  label: 'Set to today when setting dropped status.',
+                  group: null,
+                  value: ref.watch(dateAutoSetProvider).endOnDropped,
+                  onChanged: (v) => ref
+                      .read(dateAutoSetProvider.notifier)
+                      .setEndOnDropped(v),
+                ),
+                _DateAutoSetTile(
+                  label:
+                      'Allow for valid date override under selected circumstances.',
+                  group: null,
+                  value: ref.watch(dateAutoSetProvider).allowOverride,
+                  onChanged: (v) => ref
+                      .read(dateAutoSetProvider.notifier)
+                      .setAllowOverride(v),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
           Text('Storage',
               style:
                   textTheme.titleSmall?.copyWith(color: scheme.primary)),
@@ -144,6 +198,59 @@ class _ThemeTile extends StatelessWidget {
           ? Icon(Icons.check, color: scheme.primary)
           : null,
       onTap: onTap,
+    );
+  }
+}
+
+class _DateAutoSetHeader extends StatelessWidget {
+  const _DateAutoSetHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Text(
+        'Start/End date auto setters:',
+        style: Theme.of(context).textTheme.titleSmall,
+      ),
+    );
+  }
+}
+
+class _DateAutoSetTile extends StatelessWidget {
+  final String? group;
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _DateAutoSetTile({
+    this.group,
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CheckboxListTile(
+      title: Row(
+        children: [
+          if (group != null) ...[
+            SizedBox(
+              width: 72,
+              child: Text(
+                group!,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+          ],
+          Expanded(child: Text(label)),
+        ],
+      ),
+      value: value,
+      onChanged: (v) => onChanged(v ?? false),
+      controlAffinity: ListTileControlAffinity.leading,
+      dense: true,
     );
   }
 }

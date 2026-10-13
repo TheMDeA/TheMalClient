@@ -188,6 +188,7 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
             title: widget.detail.title,
             status: mls,
             total: widget.detail.numEpisodes,
+            isNew: widget.detail.myListStatus == null,
           );
         },
         icon: const Icon(Icons.add),
