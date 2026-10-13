@@ -977,8 +977,9 @@ String _errorDetails(Object e) {
   final s = e.toString();
   // DioException message is verbose; extract the key part.
   if (s.contains('DioException')) {
-    if (s.contains('status code of 429'))
+    if (s.contains('status code of 429')) {
       return 'Rate limited (429). Try again in a moment.';
+    }
     if (s.contains('status code of 404')) return 'Not found (404).';
     final match = RegExp(r'status code of (\d+)').firstMatch(s);
     if (match != null) return 'HTTP ${match.group(1)}.';
