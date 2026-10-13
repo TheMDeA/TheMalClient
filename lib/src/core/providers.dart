@@ -29,7 +29,11 @@ class AuthState {
   final AuthStatus status;
   final MalUser? user;
 
-  const AuthState(this.status, [this.user]);
+  /// True right after a fresh OAuth login — shows the welcome confirmation
+  /// page once, then cleared.
+  final bool freshLogin;
+
+  const AuthState(this.status, [this.user, this.freshLogin = false]);
 
   bool get isDemo => status == AuthStatus.demo;
   bool get isAuthenticated => status == AuthStatus.authenticated;
@@ -80,9 +84,17 @@ class AuthController extends AsyncNotifier<AuthState> {
       await repo.exchangeCode(code);
       _invalidateRepos();
       final user = await ref.read(mediaRepositoryProvider).myUser();
-      state = AsyncData(AuthState(AuthStatus.authenticated, user));
+      state = AsyncData(AuthState(AuthStatus.authenticated, user, true));
     } catch (e, st) {
       state = AsyncError(e, st);
+    }
+  }
+
+  /// Clears the one-time welcome flag after the confirmation page is done.
+  Future<void> dismissWelcome() async {
+    final current = state.value;
+    if (current != null && current.freshLogin) {
+      state = AsyncData(AuthState(current.status, current.user));
     }
   }
 

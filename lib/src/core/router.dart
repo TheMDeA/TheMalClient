@@ -11,6 +11,7 @@ import 'package:malclient/src/features/mylist/mylist_screen.dart';
 import 'package:malclient/src/features/profile/profile_screen.dart';
 import 'package:malclient/src/features/schedule/schedule_screen.dart';
 import 'package:malclient/src/features/settings/settings_screen.dart';
+import 'package:malclient/src/features/welcome/welcome_screen.dart';
 import 'package:malclient/src/widgets/app_shell.dart';
 
 /// Bridges the Riverpod auth state into go_router's [refreshListenable] so
@@ -37,19 +38,33 @@ final routerProvider = Provider<GoRouter>((ref) {
       final authValue = ref.read(authControllerProvider);
       // While auth state is still loading, don't redirect anywhere.
       if (authValue.isLoading || authValue.hasError) return null;
-      final status = authValue.value?.status ?? AuthStatus.loggedOut;
+      final auth = authValue.value;
+      final status = auth?.status ?? AuthStatus.loggedOut;
       final loggedIn = status == AuthStatus.authenticated ||
           status == AuthStatus.demo;
-      final onLogin = state.matchedLocation == '/login';
+      final loc = state.matchedLocation;
+      final onLogin = loc == '/login';
+      final onWelcome = loc == '/welcome';
 
       if (!loggedIn && !onLogin) return '/login';
-      if (loggedIn && onLogin) return '/home';
+      // Fresh OAuth login lands on the welcome confirmation once;
+      // every other entry goes straight home.
+      if (loggedIn && onLogin) {
+        return (auth?.freshLogin ?? false) ? '/welcome' : '/home';
+      }
+      if (onWelcome && (!loggedIn || !(auth?.freshLogin ?? false))) {
+        return '/home';
+      }
       return null;
     },
     routes: [
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/welcome',
+        builder: (context, state) => const WelcomeScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => AppShell(shell: shell),
