@@ -29,7 +29,7 @@ class ListRepository {
       '/users/@me/animelist',
       queryParameters: {
         'fields':
-            'list_status,media_type,status,genres,mean,rank,popularity,num_list_users,num_scoring_users,rating,num_episodes,start_date',
+            'list_status,media_type,status,genres,mean,rank,popularity,num_list_users,num_scoring_users,rating,num_episodes,start_date,broadcast',
         'limit': 200,
         if (status case final st) 'status': st,
         'sort': 'list_updated_at',

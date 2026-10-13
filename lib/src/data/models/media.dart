@@ -86,6 +86,11 @@ class AnimeSummary {
   final int? numScoringUsers;
   final String? rating; // g | pg | pg_13 | r | r_plus | rx
   final String? airedFrom; // YYYY-MM-DD (anime's start_date)
+  final String? airedTo; // YYYY-MM-DD (anime's end_date)
+  final int? avgEpisodeDuration; // seconds (average_episode_duration)
+  final List<String> synonyms; // alternative_titles.synonyms
+  final String? titleEn; // alternative_titles.en
+  final String? titleJa; // alternative_titles.ja
 
   const AnimeSummary({
     required this.id,
@@ -108,6 +113,11 @@ class AnimeSummary {
     this.numScoringUsers,
     this.rating,
     this.airedFrom,
+    this.airedTo,
+    this.avgEpisodeDuration,
+    this.synonyms = const [],
+    this.titleEn,
+    this.titleJa,
   });
 
   bool get isAiring => status == 'currently_airing';
@@ -146,6 +156,33 @@ class AnimeSummary {
       numScoringUsers: (node['num_scoring_users'] as num?)?.toInt(),
       rating: _str(node, 'rating'),
       airedFrom: _str(node, 'start_date'),
+      airedTo: _str(node, 'end_date'),
+      avgEpisodeDuration:
+          (node['average_episode_duration'] as num?)?.toInt(),
+      synonyms: _altTitles(node).$1,
+      titleEn: _altTitles(node).$2,
+      titleJa: _altTitles(node).$3,
+    );
+  }
+
+  /// (synonyms, en, ja) from `alternative_titles`.
+  static (List<String>, String?, String?) _altTitles(
+      Map<String, dynamic> node) {
+    final alt = node['alternative_titles'];
+    if (alt is! Map<String, dynamic>) return (const [], null, null);
+    final syn = alt['synonyms'];
+    return (
+      [
+        if (syn is List)
+          for (final s in syn)
+            if (s is String && s.isNotEmpty) s
+      ],
+      (alt['en'] as String?)?.isNotEmpty == true
+          ? alt['en'] as String?
+          : null,
+      (alt['ja'] as String?)?.isNotEmpty == true
+          ? alt['ja'] as String?
+          : null,
     );
   }
 }

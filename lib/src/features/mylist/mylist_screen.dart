@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -274,11 +276,17 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
               return _ListRow(
                 imageUrl: e.anime.imageUrl,
                 title: e.anime.title,
-                subtitle:
-                    '${_statusLabel(e.listStatus.status)} · Score ${e.listStatus.score}',
-                progress: e.listStatus.progress,
+                mean: e.anime.mean,
+                numListUsers: e.anime.numListUsers,
+                listStatus: e.listStatus,
+                mediaType: e.anime.mediaType,
                 total: e.anime.numEpisodes,
                 unit: 'ep',
+                genres: e.anime.genres,
+                isAiring: e.anime.isAiring,
+                broadcastDay: e.anime.broadcastDay,
+                broadcastTime: e.anime.broadcastTime,
+                airedFrom: e.anime.airedFrom,
                 compact: filter.compactRows,
                 onTap: () => context.push('/detail/anime/${e.anime.id}'),
                 onEdit: () => showEditEntrySheet(
@@ -324,11 +332,17 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
               return _ListRow(
                 imageUrl: e.manga.imageUrl,
                 title: e.manga.title,
-                subtitle:
-                    '${_statusLabel(e.listStatus.status)} · Score ${e.listStatus.score}',
-                progress: e.listStatus.progress,
+                mean: e.manga.mean,
+                numListUsers: e.manga.numListUsers,
+                listStatus: e.listStatus,
+                mediaType: e.manga.mediaType,
                 total: e.manga.numChapters,
                 unit: 'ch',
+                genres: e.manga.genres,
+                isAiring: false,
+                broadcastDay: null,
+                broadcastTime: null,
+                airedFrom: null,
                 compact: filter.compactRows,
                 onTap: () => context.push('/detail/manga/${e.manga.id}'),
                 onEdit: () => showEditEntrySheet(
@@ -385,13 +399,20 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
   }
 }
 
-class _ListRow extends StatelessWidget {
+class _ListRow extends StatefulWidget {
   final String? imageUrl;
   final String title;
-  final String subtitle;
-  final int progress;
+  final double? mean;
+  final int? numListUsers;
+  final MyListStatus listStatus;
+  final String? mediaType;
   final int? total;
   final String unit;
+  final List<String> genres;
+  final bool isAiring;
+  final String? broadcastDay;
+  final String? broadcastTime;
+  final String? airedFrom;
   final VoidCallback onTap;
   final VoidCallback onEdit;
   final void Function(int delta) onStep;
@@ -400,10 +421,17 @@ class _ListRow extends StatelessWidget {
   const _ListRow({
     required this.imageUrl,
     required this.title,
-    required this.subtitle,
-    required this.progress,
+    required this.mean,
+    required this.numListUsers,
+    required this.listStatus,
+    required this.mediaType,
     required this.total,
     required this.unit,
+    required this.genres,
+    required this.isAiring,
+    required this.broadcastDay,
+    required this.broadcastTime,
+    required this.airedFrom,
     required this.onTap,
     required this.onEdit,
     required this.onStep,
@@ -411,37 +439,115 @@ class _ListRow extends StatelessWidget {
   });
 
   @override
+  State<_ListRow> createState() => _ListRowState();
+}
+
+class _ListRowState extends State<_ListRow> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Live countdown for airing anime, ticking every second.
+    if (widget.isAiring &&
+        widget.broadcastDay != null &&
+        widget.broadcastTime != null) {
+      _timer =
+          Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final ls = widget.listStatus;
+    final progress = ls.progress;
+
     return Card.filled(
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
+        onTap: widget.onTap,
         child: Padding(
-          padding: EdgeInsets.all(compact ? 6 : 10),
+          padding: EdgeInsets.all(widget.compact ? 6 : 10),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               PosterImage(
-                  url: imageUrl,
-                  title: title,
-                  width: compact ? 36 : 52,
-                  height: compact ? 52 : 76),
+                  url: widget.imageUrl,
+                  title: widget.title,
+                  width: widget.compact ? 36 : 64,
+                  height: widget.compact ? 52 : 92),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Top row: MAL score + status badge ... user score.
+                    Row(
+                      children: [
+                        if (widget.mean != null) ...[
+                          const Icon(Icons.star,
+                              size: 14, color: Colors.amber),
+                          const SizedBox(width: 2),
+                          Text(
+                            widget.mean!.toStringAsFixed(
+                                widget.mean! >= 10 ? 0 : 2),
+                            style: textTheme.labelLarge?.copyWith(
+                                fontWeight: FontWeight.bold),
+                          ),
+                          if (widget.numListUsers != null)
+                            Text(
+                              ' (${_compactNum(widget.numListUsers!)})',
+                              style: textTheme.labelSmall?.copyWith(
+                                  color: scheme.onSurfaceVariant),
+                            ),
+                          const SizedBox(width: 6),
+                        ],
+                        _StatusBadge(status: ls.status),
+                        const Spacer(),
+                        const Icon(Icons.star,
+                            size: 14, color: Colors.amber),
+                        const SizedBox(width: 2),
+                        Text('${ls.score}',
+                            style: textTheme.labelLarge?.copyWith(
+                                fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
                     Text(
-                      title,
+                      widget.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: textTheme.titleSmall
                           ?.copyWith(fontWeight: FontWeight.w600),
                     ),
+                    // Airing countdown.
+                    if (widget.isAiring)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          _airingLine(),
+                          style: textTheme.labelMedium?.copyWith(
+                            color: scheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                     const SizedBox(height: 2),
+                    // Media info + genres.
                     Text(
-                      subtitle,
+                      _mediaLine(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
@@ -449,35 +555,182 @@ class _ListRow extends StatelessWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        _StepButton(
-                          icon: Icons.remove,
-                          onTap: () => onStep(-1),
+                        Text(
+                          '$progress ${widget.unit}',
+                          style: textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.bold),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          child: Text(
-                            total != null && total! > 0
-                                ? '$progress / $total $unit'
-                                : '$progress $unit',
-                            style: textTheme.labelLarge,
-                          ),
-                        ),
+                        const Spacer(),
                         _StepButton(
                           icon: Icons.add,
-                          onTap: () => onStep(1),
+                          onTap: () => widget.onStep(1),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined, size: 20),
+                          onPressed: widget.onEdit,
+                          tooltip: 'Edit entry',
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        _StepButton(
+                          icon: Icons.remove,
+                          onTap: () => widget.onStep(-1),
                         ),
                       ],
                     ),
                   ],
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.edit_outlined),
-                onPressed: onEdit,
-                tooltip: 'Edit entry',
-              ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// "TV (64 eps) · Action, Adventure, Drama"
+  String _mediaLine() {
+    final parts = <String>[];
+    final type = _prettyMediaType(widget.mediaType);
+    if (type != null) {
+      parts.add(widget.total != null && widget.total! > 0
+          ? '$type (${widget.total} ${widget.unit})'
+          : type);
+    }
+    if (widget.genres.isNotEmpty) {
+      parts.add(widget.genres.take(3).join(', '));
+    }
+    return parts.join(' · ');
+  }
+
+  /// "Ep 3 · 3d 3h 39m 56s"
+  String _airingLine() {
+    final ep = _currentEpisode();
+    final countdown = _countdown();
+    if (ep != null && countdown != null) return 'Ep $ep · $countdown';
+    if (countdown != null) return countdown;
+    return 'Currently airing';
+  }
+
+  int? _currentEpisode() {
+    final start = widget.airedFrom;
+    if (start == null || start.length < 10) return null;
+    try {
+      final startDate = DateTime.parse(start.substring(0, 10));
+      final now = DateTime.now();
+      if (now.isBefore(startDate)) return null;
+      final weeks = now.difference(startDate).inDays ~/ 7;
+      var ep = weeks + 1;
+      final total = widget.total;
+      if (total != null && total > 0 && ep > total) ep = total;
+      return ep > 0 ? ep : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String? _countdown() {
+    final next = _nextAirDate();
+    if (next == null) return null;
+    final diff = next.difference(DateTime.now());
+    if (diff.isNegative) return null;
+    final d = diff.inDays;
+    final h = diff.inHours % 24;
+    final m = diff.inMinutes % 60;
+    final s = diff.inSeconds % 60;
+    if (d > 0) return '${d}d ${h}h ${m}m ${s}s';
+    if (h > 0) return '${h}h ${m}m ${s}s';
+    return '${m}m ${s}s';
+  }
+
+  DateTime? _nextAirDate() {
+    final day = widget.broadcastDay;
+    final time = widget.broadcastTime;
+    if (day == null || time == null) return null;
+    final weekday = _weekday(day);
+    final parts = time.split(':');
+    if (parts.length < 2) return null;
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null || weekday == null) return null;
+    final jstNow =
+        DateTime.now().toUtc().add(const Duration(hours: 9));
+    var candidate = DateTime(
+        jstNow.year, jstNow.month, jstNow.day, hour, minute);
+    var daysAhead = (weekday - candidate.weekday) % 7;
+    if (daysAhead == 0 && !candidate.isAfter(jstNow)) daysAhead = 7;
+    candidate = candidate.add(Duration(days: daysAhead));
+    return candidate.subtract(const Duration(hours: 9)).toLocal();
+  }
+
+  int? _weekday(String day) => switch (day.toLowerCase()) {
+        'mondays' => DateTime.monday,
+        'tuesdays' => DateTime.tuesday,
+        'wednesdays' => DateTime.wednesday,
+        'thursdays' => DateTime.thursday,
+        'fridays' => DateTime.friday,
+        'saturdays' => DateTime.saturday,
+        'sundays' => DateTime.sunday,
+        _ => null,
+      };
+
+  String? _prettyMediaType(String? t) => switch (t) {
+        'tv' => 'TV',
+        'ova' => 'OVA',
+        'movie' => 'Movie',
+        'special' => 'Special',
+        'ona' => 'ONA',
+        'music' => 'Music',
+        'manga' => 'Manga',
+        'novel' => 'Novel',
+        'one_shot' => 'One-shot',
+        'doujinshi' => 'Doujinshi',
+        'manhwa' => 'Manhwa',
+        'manhua' => 'Manhua',
+        _ => t,
+      };
+
+  String _compactNum(int n) {
+    if (n >= 1000000) {
+      final v = n / 1000000;
+      return '${v.toStringAsFixed(v >= 10 ? 0 : 2).replaceAll(RegExp(r'\.?0+$'), '')}M';
+    }
+    if (n >= 1000) {
+      final v = n / 1000;
+      return '${v.toStringAsFixed(v >= 100 ? 0 : 1).replaceAll(RegExp(r'\.?0+$'), '')}K';
+    }
+    return '$n';
+  }
+}
+
+/// Colored status pill: CW / C / OH / D / PTW.
+class _StatusBadge extends StatelessWidget {
+  final String status;
+
+  const _StatusBadge({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, color) = switch (status) {
+      'watching' || 'reading' => ('CW', Colors.green),
+      'completed' => ('C', Colors.blue),
+      'on_hold' => ('OH', Colors.orange),
+      'dropped' => ('D', Colors.red),
+      'plan_to_watch' || 'plan_to_read' => ('PTW', Colors.grey),
+      _ => ('?', Colors.grey),
+    };
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );

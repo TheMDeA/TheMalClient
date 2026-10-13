@@ -79,9 +79,9 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
   @override
   void initState() {
     super.initState();
-    // Anime: 6 tabs (Synopsis, Characters, Staff, Media, Related, Reviews).
-    // Manga: 5 tabs (no Staff — Jikan has no manga staff endpoint).
-    _tabs = TabController(length: _isAnime ? 6 : 5, vsync: this);
+    // Anime: 7 tabs (Synopsis, Characters, Staff, Media, Related, Reviews, More Info).
+    // Manga: 6 tabs (no Staff — Jikan has no manga staff endpoint).
+    _tabs = TabController(length: _isAnime ? 7 : 6, vsync: this);
   }
 
   @override
@@ -169,6 +169,7 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
                 const Tab(text: 'Media'),
                 const Tab(text: 'Related'),
                 const Tab(text: 'Reviews'),
+                const Tab(text: 'More Info'),
               ],
             ),
             Expanded(
@@ -182,6 +183,7 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
                   _MediaTab(detail: d),
                   _RelatedTab(detail: d),
                   _ReviewsTab(animeId: d.id),
+                  _MoreInfoTab(detail: d, isAnime: _isAnime),
                 ],
               ),
             ),
@@ -305,14 +307,34 @@ class _CountdownChipState extends State<_CountdownChip> {
     final parts = <String>[];
     final ep = _currentEpisode(d);
     if (ep != null) parts.add('Ep $ep');
-    if (d.broadcastTime != null) {
-      parts.add('Airs ${_prettyDay(d.broadcastDay)} at ${d.broadcastTime}');
+    final localAir = _localAirLabel(d);
+    if (localAir != null) {
+      parts.add(localAir);
     } else {
       parts.add('Currently airing');
     }
     final countdown = _countdown(d);
     if (countdown != null) parts.add(countdown);
     return parts.join(' • ');
+  }
+
+  /// "Airs Friday at 22:00" in the phone's local timezone (broadcast is JST).
+  String? _localAirLabel(AnimeDetail d) {
+    final next = _nextAirDate(d);
+    if (next == null) return null;
+    final day = switch (next.weekday) {
+      DateTime.monday => 'Monday',
+      DateTime.tuesday => 'Tuesday',
+      DateTime.wednesday => 'Wednesday',
+      DateTime.thursday => 'Thursday',
+      DateTime.friday => 'Friday',
+      DateTime.saturday => 'Saturday',
+      DateTime.sunday => 'Sunday',
+      _ => '',
+    };
+    final time =
+        '${next.hour.toString().padLeft(2, '0')}:${next.minute.toString().padLeft(2, '0')}';
+    return 'Airs $day at $time';
   }
 
   /// Estimates the latest aired episode from start date + weekly broadcast.
@@ -381,11 +403,6 @@ class _CountdownChipState extends State<_CountdownChip> {
         'sundays' => DateTime.sunday,
         _ => null,
       };
-
-  String _prettyDay(String? day) {
-    if (day == null) return '';
-    return day[0].toUpperCase() + day.substring(1).replaceAll('s', '');
-  }
 }
 
 class _SynopsisTab extends StatelessWidget {
@@ -1083,3 +1100,244 @@ final _reviewsProvider =
     FutureProvider.family<List<Review>, int>((ref, id) {
   return ref.watch(jikanRepositoryProvider).animeReviews(id);
 });
+
+/// More Info tab: card-based detailed metadata like the classic app.
+class _MoreInfoTab extends StatelessWidget {
+  final AnimeDetail detail;
+  final bool isAnime;
+
+  const _MoreInfoTab({required this.detail, required this.isAnime});
+
+  @override
+  Widget build(BuildContext context) {
+    final d = detail;
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    Widget card(String label, String value, {int flex = 1}) {
+      return Expanded(
+        flex: flex,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant)),
+              const SizedBox(height: 4),
+              Text(value,
+                  style: textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    Widget wideCard(String label, String value) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label,
+                style: textTheme.bodySmall
+                    ?.copyWith(color: scheme.onSurfaceVariant)),
+            const SizedBox(height: 4),
+            Text(value, style: textTheme.bodyMedium),
+          ],
+        ),
+      );
+    }
+
+    Widget chipSection(String label, List<String> items) {
+      if (items.isEmpty) return const SizedBox.shrink();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
+            child: Text(label, style: textTheme.titleSmall),
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final item in items)
+                Chip(
+                  label: Text(item),
+                  visualDensity: VisualDensity.compact,
+                ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    final aired = _airedRange(d);
+    final broadcast = _broadcastLocal(d);
+    final duration = d.avgEpisodeDuration != null
+        ? '${(d.avgEpisodeDuration! / 60).round()}mins'
+        : null;
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Text('More Info',
+            style: textTheme.headlineSmall
+                ?.copyWith(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            card('Media', _mediaType(d.mediaType) ?? '—'),
+            const SizedBox(width: 8),
+            card('Episodes', '${d.numEpisodes ?? '—'}'),
+            const SizedBox(width: 8),
+            card('Status', _prettyStatus(d.status), flex: 2),
+            const SizedBox(width: 8),
+            card('Premiered', _premiered(d), flex: 2),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            if (aired != null) card('Aired', aired, flex: 3),
+            if (aired != null) const SizedBox(width: 8),
+            card('Source',
+                d.source?.isNotEmpty == true ? _cap(d.source) : '—',
+                flex: 2),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            if (broadcast != null) card('Broadcast', broadcast, flex: 3),
+            if (broadcast != null) const SizedBox(width: 8),
+            if (duration != null) card('Duration', duration, flex: 2),
+            if (duration != null) const SizedBox(width: 8),
+            card('Rating', _prettyRating(d.rating) ?? '—', flex: 2),
+          ],
+        ),
+        if (d.synonyms.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          wideCard('Synonyms', d.synonyms.join(', ')),
+        ],
+        if (_allTitles(d).isNotEmpty) ...[
+          const SizedBox(height: 8),
+          wideCard('Title', _allTitles(d)),
+        ],
+        const SizedBox(height: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (d.studio != null)
+              Expanded(child: chipSection('Studios', [d.studio!])),
+            Expanded(child: chipSection('Genres', d.genres)),
+          ],
+        ),
+        const SizedBox(height: 80), // Space for FAB
+      ],
+    );
+  }
+
+  String? _mediaType(String? t) => switch (t) {
+        'tv' => 'TV',
+        'ova' => 'OVA',
+        'movie' => 'Movie',
+        'special' => 'Special',
+        'ona' => 'ONA',
+        'music' => 'Music',
+        _ => t == null ? null : _cap(t),
+      };
+
+  String _cap(String? s) =>
+      s == null || s.isEmpty ? '' : s[0].toUpperCase() + s.substring(1);
+
+  String _prettyStatus(String? s) => switch (s) {
+        'currently_airing' => 'Currently airing',
+        'finished_airing' => 'Finished airing',
+        'not_yet_aired' => 'Not yet aired',
+        _ => s ?? '—',
+      };
+
+  String _premiered(AnimeDetail d) {
+    if (d.seasonYear != null) {
+      return '${_cap(d.season)} ${d.seasonYear}';
+    }
+    return d.airedFrom?.substring(0, 4) ?? '—';
+  }
+
+  /// "2026-04-01 to 2026-06-24"
+  String? _airedRange(AnimeDetail d) {
+    final from = d.airedFrom;
+    if (from == null) return null;
+    final to = d.airedTo;
+    return to != null ? '$from to $to' : from;
+  }
+
+  /// Broadcast time converted to local timezone, e.g. "8:30 PM Wed (WITA)".
+  String? _broadcastLocal(AnimeDetail d) {
+    final day = d.broadcastDay;
+    final time = d.broadcastTime;
+    if (day == null || time == null) return null;
+    try {
+      final parts = time.split(':');
+      final hour = int.parse(parts[0]);
+      final minute = int.parse(parts[1]);
+      // JST -> local.
+      final jst = DateTime(2026, 1, 1, hour, minute);
+      final local =
+          jst.subtract(const Duration(hours: 9)).toLocal();
+      final h = local.hour;
+      final period = h >= 12 ? 'PM' : 'AM';
+      final h12 = h % 12 == 0 ? 12 : h % 12;
+      final m = local.minute.toString().padLeft(2, '0');
+      final weekday = _shortDay(day);
+      final tz = DateTime.now().timeZoneName;
+      return '$h12:$m $period $weekday ($tz)';
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _shortDay(String day) => switch (day.toLowerCase()) {
+        'mondays' => 'Mon',
+        'tuesdays' => 'Tue',
+        'wednesdays' => 'Wed',
+        'thursdays' => 'Thu',
+        'fridays' => 'Fri',
+        'saturdays' => 'Sat',
+        'sundays' => 'Sun',
+        _ => day,
+      };
+
+  String? _prettyRating(String? r) => switch (r) {
+        'g' => 'G',
+        'pg' => 'PG',
+        'pg_13' => 'PG 13',
+        'r' => 'R',
+        'r_plus' => 'R+',
+        'rx' => 'Rx',
+        _ => r,
+      };
+
+  /// All alternative titles combined.
+  String _allTitles(AnimeDetail d) {
+    final titles = <String>[d.title];
+    if (d.titleEn != null && d.titleEn != d.title) {
+      titles.add(d.titleEn!);
+    }
+    if (d.titleJa != null) titles.add(d.titleJa!);
+    return titles.join(', ');
+  }
+}

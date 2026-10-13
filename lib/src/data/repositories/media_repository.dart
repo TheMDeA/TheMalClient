@@ -5,7 +5,7 @@ import 'package:malclient/src/data/models/media.dart';
 
 const _animeFields =
     'id,title,main_picture,mean,rank,popularity,num_episodes,media_type,'
-    'status,genres,synopsis,start_season,start_date,broadcast,studios,num_list_users';
+    'status,genres,synopsis,start_season,start_date,end_date,broadcast,studios,num_list_users';
 
 const _mangaFields =
     'id,title,main_picture,mean,rank,popularity,num_chapters,num_volumes,'
