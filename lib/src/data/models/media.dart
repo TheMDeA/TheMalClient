@@ -85,6 +85,7 @@ class AnimeSummary {
   final int? numListUsers;
   final int? numScoringUsers;
   final String? rating; // g | pg | pg_13 | r | r_plus | rx
+  final String? airedFrom; // YYYY-MM-DD (anime's start_date)
 
   const AnimeSummary({
     required this.id,
@@ -106,6 +107,7 @@ class AnimeSummary {
     this.numListUsers,
     this.numScoringUsers,
     this.rating,
+    this.airedFrom,
   });
 
   bool get isAiring => status == 'currently_airing';
@@ -143,6 +145,7 @@ class AnimeSummary {
       numListUsers: (node['num_list_users'] as num?)?.toInt(),
       numScoringUsers: (node['num_scoring_users'] as num?)?.toInt(),
       rating: _str(node, 'rating'),
+      airedFrom: _str(node, 'start_date'),
     );
   }
 }

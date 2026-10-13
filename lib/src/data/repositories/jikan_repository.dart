@@ -15,9 +15,30 @@ class JikanRepository {
     receiveTimeout: const Duration(seconds: 20),
   ));
 
+  /// GET with retry on 429 (Jikan rate limit: 3 req/s). Waits and retries
+  /// up to 3 times with exponential backoff before giving up.
+  Future<Response> _get(String path,
+      {Map<String, dynamic>? queryParameters}) async {
+    DioException? lastError;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await _dio.get(path, queryParameters: queryParameters);
+      } on DioException catch (e) {
+        lastError = e;
+        if (e.response?.statusCode == 429 && attempt < 2) {
+          // Exponential backoff: 1s, 2s.
+          await Future.delayed(Duration(seconds: attempt + 1));
+          continue;
+        }
+        rethrow;
+      }
+    }
+    throw lastError!;
+  }
+
   Future<List<Review>> animeReviews(int malId, {int limit = 10}) async {
     try {
-      final res = await _dio.get(
+      final res = await _get(
         '/anime/$malId/reviews',
         queryParameters: {'limit': limit, 'preliminary': false},
       );
@@ -35,7 +56,7 @@ class JikanRepository {
   Future<List<AnimeSummary>> animeRecommendations(int malId,
       {int limit = 12}) async {
     try {
-      final res = await _dio.get('/anime/$malId/recommendations');
+      final res = await _get('/anime/$malId/recommendations');
       final data = (res.data as Map<String, dynamic>)['data'];
       if (data is! List) return const [];
       final out = <AnimeSummary>[];
@@ -62,7 +83,7 @@ class JikanRepository {
   /// News for one anime (used on the detail screen).
   Future<List<NewsItem>> animeNews(int malId, {int limit = 6}) async {
     try {
-      final res = await _dio.get('/anime/$malId/news');
+      final res = await _get('/anime/$malId/news');
       final data = (res.data as Map<String, dynamic>)['data'];
       if (data is! List) return const [];
       return [
@@ -75,45 +96,40 @@ class JikanRepository {
   }
 
   /// Characters with voice actors (`/anime/{id}/characters`).
+  /// Throws on network/API errors so the UI can show the error state
+  /// (instead of the misleading "no characters found").
   Future<List<AnimeCharacter>> animeCharacters(int malId) async {
-    try {
-      final res = await _dio.get('/anime/$malId/characters');
-      final data = (res.data as Map<String, dynamic>)['data'];
-      if (data is! List) return const [];
-      final out = [
-        for (final e in data)
-          if (e is Map<String, dynamic>) AnimeCharacter.fromJikan(e)
-      ];
-      // Main characters first.
-      out.sort((a, b) {
-        int rank(String r) => r == 'Main' ? 0 : 1;
-        return rank(a.role).compareTo(rank(b.role));
-      });
-      return out;
-    } catch (_) {
-      return const [];
-    }
+    final res = await _get('/anime/$malId/characters');
+    final data = (res.data as Map<String, dynamic>)['data'];
+    if (data is! List) return const [];
+    final out = [
+      for (final e in data)
+        if (e is Map<String, dynamic>) AnimeCharacter.fromJikan(e)
+    ];
+    // Main characters first.
+    out.sort((a, b) {
+      int rank(String r) => r == 'Main' ? 0 : 1;
+      return rank(a.role).compareTo(rank(b.role));
+    });
+    return out;
   }
 
   /// Staff (`/anime/{id}/staff`).
+  /// Throws on network/API errors so the UI can show the error state.
   Future<List<AnimeStaff>> animeStaff(int malId) async {
-    try {
-      final res = await _dio.get('/anime/$malId/staff');
-      final data = (res.data as Map<String, dynamic>)['data'];
-      if (data is! List) return const [];
-      return [
-        for (final e in data)
-          if (e is Map<String, dynamic>) AnimeStaff.fromJikan(e)
-      ];
-    } catch (_) {
-      return const [];
-    }
+    final res = await _get('/anime/$malId/staff');
+    final data = (res.data as Map<String, dynamic>)['data'];
+    if (data is! List) return const [];
+    return [
+      for (final e in data)
+        if (e is Map<String, dynamic>) AnimeStaff.fromJikan(e)
+    ];
   }
 
   /// Aggregate statistics (`/anime/{id}/statistics`).
   Future<AnimeStatistics?> animeStatistics(int malId) async {
     try {
-      final res = await _dio.get('/anime/$malId/statistics');
+      final res = await _get('/anime/$malId/statistics');
       final data = (res.data as Map<String, dynamic>)['data'];
       if (data is! Map<String, dynamic>) return null;
       return AnimeStatistics.fromJikan(data);
@@ -123,18 +139,15 @@ class JikanRepository {
   }
 
   /// Characters for a manga (`/manga/{id}/characters`).
+  /// Throws on network/API errors so the UI can show the error state.
   Future<List<AnimeCharacter>> mangaCharacters(int malId) async {
-    try {
-      final res = await _dio.get('/manga/$malId/characters');
-      final data = (res.data as Map<String, dynamic>)['data'];
-      if (data is! List) return const [];
-      return [
-        for (final e in data)
-          if (e is Map<String, dynamic>) AnimeCharacter.fromJikan(e)
-      ];
-    } catch (_) {
-      return const [];
-    }
+    final res = await _get('/manga/$malId/characters');
+    final data = (res.data as Map<String, dynamic>)['data'];
+    if (data is! List) return const [];
+    return [
+      for (final e in data)
+        if (e is Map<String, dynamic>) AnimeCharacter.fromJikan(e)
+    ];
   }
 
   /// Aggregated news for the Home rail: pulls news for a few well-known

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -242,17 +244,37 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
   }
 }
 
-class _CountdownChip extends StatelessWidget {
+class _CountdownChip extends StatefulWidget {
   final AnimeDetail detail;
 
   const _CountdownChip({required this.detail});
 
   @override
+  State<_CountdownChip> createState() => _CountdownChipState();
+}
+
+class _CountdownChipState extends State<_CountdownChip> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Tick every minute to keep the countdown fresh.
+    _timer = Timer.periodic(
+        const Duration(minutes: 1), (_) => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final label = detail.broadcastTime != null
-        ? 'Airs ${_prettyDay(detail.broadcastDay)} at ${detail.broadcastTime}'
-        : 'Currently airing';
+    final d = widget.detail;
+    final label = _buildLabel(d);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
@@ -277,6 +299,88 @@ class _CountdownChip extends StatelessWidget {
       ),
     );
   }
+
+  /// "Ep 5 • Airs Friday at 23:00 • in 2d 4h 12m"
+  String _buildLabel(AnimeDetail d) {
+    final parts = <String>[];
+    final ep = _currentEpisode(d);
+    if (ep != null) parts.add('Ep $ep');
+    if (d.broadcastTime != null) {
+      parts.add('Airs ${_prettyDay(d.broadcastDay)} at ${d.broadcastTime}');
+    } else {
+      parts.add('Currently airing');
+    }
+    final countdown = _countdown(d);
+    if (countdown != null) parts.add(countdown);
+    return parts.join(' • ');
+  }
+
+  /// Estimates the latest aired episode from start date + weekly broadcast.
+  int? _currentEpisode(AnimeDetail d) {
+    final start = d.airedFrom;
+    if (start == null || start.length < 10) return null;
+    try {
+      final startDate = DateTime.parse(start.substring(0, 10));
+      final now = DateTime.now();
+      if (now.isBefore(startDate)) return null;
+      final weeks = now.difference(startDate).inDays ~/ 7;
+      var ep = weeks + 1;
+      final total = d.numEpisodes;
+      if (total != null && ep > total) ep = total;
+      return ep > 0 ? ep : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// "in 2d 4h 12m" until the next episode (broadcast is JST).
+  String? _countdown(AnimeDetail d) {
+    final next = _nextAirDate(d);
+    if (next == null) return null;
+    final diff = next.difference(DateTime.now());
+    if (diff.isNegative) return null;
+    final days = diff.inDays;
+    final hours = diff.inHours % 24;
+    final mins = diff.inMinutes % 60;
+    if (days > 0) return 'in ${days}d ${hours}h ${mins}m';
+    if (hours > 0) return 'in ${hours}h ${mins}m';
+    return 'in ${mins}m';
+  }
+
+  /// Next broadcast datetime in local time. Broadcast times are JST (UTC+9).
+  DateTime? _nextAirDate(AnimeDetail d) {
+    final day = d.broadcastDay;
+    final time = d.broadcastTime;
+    if (day == null || time == null) return null;
+    final weekday = _weekday(day);
+    final parts = time.split(':');
+    if (parts.length < 2) return null;
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null || weekday == null) return null;
+
+    // Work in JST, then convert to local.
+    final jstNow =
+        DateTime.now().toUtc().add(const Duration(hours: 9));
+    var candidate = DateTime(
+        jstNow.year, jstNow.month, jstNow.day, hour, minute);
+    var daysAhead = (weekday - candidate.weekday) % 7;
+    if (daysAhead == 0 && !candidate.isAfter(jstNow)) daysAhead = 7;
+    candidate = candidate.add(Duration(days: daysAhead));
+    // JST -> UTC -> local.
+    return candidate.subtract(const Duration(hours: 9)).toLocal();
+  }
+
+  int? _weekday(String day) => switch (day.toLowerCase()) {
+        'mondays' => DateTime.monday,
+        'tuesdays' => DateTime.tuesday,
+        'wednesdays' => DateTime.wednesday,
+        'thursdays' => DateTime.thursday,
+        'fridays' => DateTime.friday,
+        'saturdays' => DateTime.saturday,
+        'sundays' => DateTime.sunday,
+        _ => null,
+      };
 
   String _prettyDay(String? day) {
     if (day == null) return '';
@@ -314,16 +418,76 @@ class _SynopsisTab extends StatelessWidget {
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.5),
         ),
         const SizedBox(height: 16),
+        Text('Information',
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        _infoRow(context, 'Format', _format(detail)),
+        _infoRow(context, 'Score', detail.mean?.toStringAsFixed(2)),
+        _infoRow(context, 'Ranked', _rank(detail.rank)),
+        _infoRow(context, 'Popularity', _rank(detail.popularity)),
+        _infoRow(context, 'Members', _number(detail.numListUsers)),
         _infoRow(context, 'Studio', detail.studio),
-        _infoRow(context, 'Source', detail.source),
+        _infoRow(context, 'Source', _prettySource(detail.source)),
         _infoRow(context, 'Season',
             detail.seasonYear != null ? '${_cap(detail.season)} ${detail.seasonYear}' : null),
         _infoRow(context, 'Status', _prettyStatus(detail.status)),
+        _infoRow(context, 'Rating', _prettyRating(detail.rating)),
         const SizedBox(height: 8),
         _StatisticsSection(animeId: detail.id),
       ],
     );
   }
+
+  /// "TV (24 eps)" — media type with episode count.
+  String? _format(AnimeDetail d) {
+    final type = _prettyMediaType(d.mediaType);
+    if (type == null) return null;
+    final n = d.numEpisodes;
+    if (n == null) return type;
+    return '$type ($n eps)';
+  }
+
+  String? _prettyMediaType(String? t) => switch (t) {
+        'tv' => 'TV',
+        'ova' => 'OVA',
+        'movie' => 'Movie',
+        'special' => 'Special',
+        'ona' => 'ONA',
+        'music' => 'Music',
+        'manga' => 'Manga',
+        'novel' => 'Novel',
+        'one_shot' => 'One-shot',
+        'doujinshi' => 'Doujinshi',
+        'manhwa' => 'Manhwa',
+        'manhua' => 'Manhua',
+        _ => t == null ? null : _cap(t),
+      };
+
+  String? _rank(int? r) => r == null ? null : '#$r';
+
+  String? _number(int? n) {
+    if (n == null) return null;
+    // Thousands separators.
+    return n
+        .toString()
+        .replaceAllMapped(
+            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+  }
+
+  String? _prettySource(String? s) => s == null ? null : _cap(s);
+
+  String? _prettyRating(String? r) => switch (r) {
+        'g' => 'G',
+        'pg' => 'PG',
+        'pg_13' => 'PG-13',
+        'r' => 'R',
+        'r_plus' => 'R+',
+        'rx' => 'Rx',
+        _ => r,
+      };
 
   String _cap(String? s) =>
       s == null || s.isEmpty ? '' : s[0].toUpperCase() + s.substring(1);
@@ -590,7 +754,47 @@ class _CharactersTab extends ConsumerWidget {
       },
       loading: () =>
           const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Could not load: $e')),
+      error: (e, _) => _ErrorRetry(
+        message: 'Could not load characters.',
+        onRetry: () => ref.invalidate(isAnime
+            ? animeCharactersProvider(id)
+            : mangaCharactersProvider(id)),
+      ),
+    );
+  }
+}
+
+/// Error state with a retry button for Jikan-powered tabs.
+class _ErrorRetry extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _ErrorRetry({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.cloud_off_outlined, size: 40),
+          const SizedBox(height: 8),
+          Text(message, textAlign: TextAlign.center),
+          const SizedBox(height: 4),
+          Text(
+            'Check your connection or try again.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          FilledButton(
+            onPressed: onRetry,
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -666,7 +870,10 @@ class _StaffTab extends ConsumerWidget {
       },
       loading: () =>
           const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Could not load: $e')),
+      error: (e, _) => _ErrorRetry(
+        message: 'Could not load staff.',
+        onRetry: () => ref.invalidate(animeStaffProvider(animeId)),
+      ),
     );
   }
 }
