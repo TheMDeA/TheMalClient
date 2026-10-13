@@ -773,6 +773,7 @@ class _CharactersTab extends ConsumerWidget {
           const Center(child: CircularProgressIndicator()),
       error: (e, _) => _ErrorRetry(
         message: 'Could not load characters.',
+        details: _errorDetails(e),
         onRetry: () => ref.invalidate(isAnime
             ? animeCharactersProvider(id)
             : mangaCharactersProvider(id)),
@@ -784,36 +785,62 @@ class _CharactersTab extends ConsumerWidget {
 /// Error state with a retry button for Jikan-powered tabs.
 class _ErrorRetry extends StatelessWidget {
   final String message;
+  final String? details;
   final VoidCallback onRetry;
 
-  const _ErrorRetry({required this.message, required this.onRetry});
+  const _ErrorRetry(
+      {required this.message, this.details, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.cloud_off_outlined, size: 40),
-          const SizedBox(height: 8),
-          Text(message, textAlign: TextAlign.center),
-          const SizedBox(height: 4),
-          Text(
-            'Check your connection or try again.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 12),
-          FilledButton(
-            onPressed: onRetry,
-            child: const Text('Retry'),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off_outlined, size: 40),
+            const SizedBox(height: 8),
+            Text(message, textAlign: TextAlign.center),
+            if (details != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                details!,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurfaceVariant,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: onRetry,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
       ),
     );
   }
+}
+
+/// Human-readable error details for debugging Jikan failures.
+String _errorDetails(Object e) {
+  final s = e.toString();
+  // DioException message is verbose; extract the key part.
+  if (s.contains('DioException')) {
+    if (s.contains('status code of 429')) return 'Rate limited (429). Try again in a moment.';
+    if (s.contains('status code of 404')) return 'Not found (404).';
+    final match = RegExp(r'status code of (\d+)').firstMatch(s);
+    if (match != null) return 'HTTP ${match.group(1)}.';
+    if (s.contains('SocketException') || s.contains('Connection')) {
+      return 'No connection.';
+    }
+    if (s.contains('timeout')) return 'Request timed out.';
+  }
+  return s.length > 120 ? '${s.substring(0, 120)}…' : s;
 }
 
 /// Staff tab (anime only): list of staff with positions (Jikan).
@@ -889,6 +916,7 @@ class _StaffTab extends ConsumerWidget {
           const Center(child: CircularProgressIndicator()),
       error: (e, _) => _ErrorRetry(
         message: 'Could not load staff.',
+        details: _errorDetails(e),
         onRetry: () => ref.invalidate(animeStaffProvider(animeId)),
       ),
     );

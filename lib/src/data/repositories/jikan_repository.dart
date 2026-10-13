@@ -13,6 +13,9 @@ class JikanRepository {
     baseUrl: jikanApiBase,
     connectTimeout: const Duration(seconds: 15),
     receiveTimeout: const Duration(seconds: 20),
+    headers: {
+      'User-Agent': 'MALClient/1.2.1 (https://github.com/TheMDeA/TheMalClient)',
+    },
   ));
 
   /// GET with retry on 429 (Jikan rate limit: 3 req/s). Waits and retries
