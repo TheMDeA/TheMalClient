@@ -1,8 +1,52 @@
 import 'package:flutter/material.dart';
+import 'package:malclient/src/core/services/update_service.dart';
+import 'package:malclient/src/features/settings/update_sheet.dart';
 
-/// About sub-screen: version, changelog highlights, data sources.
-class AboutScreen extends StatelessWidget {
+/// About sub-screen: version, changelog highlights, data sources,
+/// and the update checker.
+class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
+
+  @override
+  State<AboutScreen> createState() => _AboutScreenState();
+}
+
+class _AboutScreenState extends State<AboutScreen> {
+  bool _checking = false;
+  bool _autoCheck = true;
+
+  @override
+  void initState() {
+    super.initState();
+    autoCheckUpdate.then((v) {
+      if (mounted) setState(() => _autoCheck = v);
+    });
+  }
+
+  Future<void> _checkForUpdates() async {
+    setState(() => _checking = true);
+    try {
+      final info = await checkForUpdate();
+      if (!mounted) return;
+      if (info != null) {
+        await showUpdateSheet(context, info);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("You're up to date.")),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  "Couldn't check for updates. Check your connection.")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _checking = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,11 +73,49 @@ class AboutScreen extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Text(
-                  'Version 1.1.0 · Flutter rewrite',
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSurfaceVariant,
+                FutureBuilder<String>(
+                  future: installedVersion(),
+                  builder: (context, snap) => Text(
+                    'Version ${snap.data ?? '1.1.0'} · Flutter rewrite',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card.filled(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: Icon(Icons.system_update_outlined,
+                      color: scheme.onSurfaceVariant),
+                  title: const Text('Check for updates'),
+                  subtitle: const Text(
+                      'See if a newer version is available'),
+                  trailing: _checking
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2),
+                        )
+                      : const Icon(Icons.chevron_right),
+                  onTap: _checking ? null : _checkForUpdates,
+                ),
+                SwitchListTile(
+                  secondary: Icon(Icons.autorenew_outlined,
+                      color: scheme.onSurfaceVariant),
+                  title: const Text('Auto-check for updates'),
+                  subtitle: const Text(
+                      'Check once a day when the app starts'),
+                  value: _autoCheck,
+                  onChanged: (v) async {
+                    await setAutoCheckUpdate(v);
+                    if (mounted) setState(() => _autoCheck = v);
+                  },
                 ),
               ],
             ),
@@ -54,8 +136,8 @@ class AboutScreen extends StatelessWidget {
                 children: [
                   Text('•  ', style: textTheme.bodyMedium),
                   Expanded(
-                    child: Text(item,
-                        style: textTheme.bodyMedium),
+                    child:
+                        Text(item, style: textTheme.bodyMedium),
                   ),
                 ],
               ),
