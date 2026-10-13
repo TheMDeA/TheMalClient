@@ -11,6 +11,7 @@ import 'package:malclient/src/features/mylist/list_filter.dart';
 import 'package:malclient/src/widgets/poster_card.dart';
 import 'package:malclient/src/widgets/section_widgets.dart';
 import 'package:malclient/src/widgets/skeleton.dart';
+import 'package:malclient/src/widgets/entrance.dart';
 
 /// My List tab: Anime | Manga segmented control, status filter chips,
 /// rows with progress steppers and an edit bottom sheet.
@@ -33,47 +34,40 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
     super.dispose();
   }
 
-  List<String> get _statuses => _kind == ListKind.anime
-      ? AnimeListStatuses.all
-      : MangaListStatuses.all;
+  List<String> get _statuses =>
+      _kind == ListKind.anime ? AnimeListStatuses.all : MangaListStatuses.all;
 
   String _statusLabel(String s) => _kind == ListKind.anime
       ? AnimeListStatuses.label(s)
       : MangaListStatuses.label(s);
 
   List<AnimeListEntry> _applyAnimeFilterSort(
-      List<AnimeListEntry> items, ListFilterState f) {
+    List<AnimeListEntry> items,
+    ListFilterState f,
+  ) {
     var out = items;
     if (_searchQuery.isNotEmpty) {
       out = out
-          .where((e) =>
-              e.anime.title.toLowerCase().contains(_searchQuery))
+          .where((e) => e.anime.title.toLowerCase().contains(_searchQuery))
           .toList();
     }
     if (f.animeTypes.isNotEmpty) {
-      out = out
-          .where((e) => f.animeTypes.contains(e.anime.mediaType))
-          .toList();
+      out = out.where((e) => f.animeTypes.contains(e.anime.mediaType)).toList();
     }
     if (f.animeStatuses.isNotEmpty) {
-      out = out
-          .where((e) => f.animeStatuses.contains(e.anime.status))
-          .toList();
+      out = out.where((e) => f.animeStatuses.contains(e.anime.status)).toList();
     }
     if (f.ratings.isNotEmpty) {
-      out =
-          out.where((e) => f.ratings.contains(e.anime.rating)).toList();
+      out = out.where((e) => f.ratings.contains(e.anime.rating)).toList();
     }
     if (f.genresInclude.isNotEmpty) {
       out = out
-          .where((e) =>
-              f.genresInclude.any((g) => e.anime.genres.contains(g)))
+          .where((e) => f.genresInclude.any((g) => e.anime.genres.contains(g)))
           .toList();
     }
     if (f.genresExclude.isNotEmpty) {
       out = out
-          .where((e) =>
-              !f.genresExclude.any((g) => e.anime.genres.contains(g)))
+          .where((e) => !f.genresExclude.any((g) => e.anime.genres.contains(g)))
           .toList();
     }
     final sorted = List<AnimeListEntry>.of(out);
@@ -81,29 +75,34 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
       final int cmp;
       switch (f.sortBy) {
         case 'title':
-          cmp = a.anime.title
-              .toLowerCase()
-              .compareTo(b.anime.title.toLowerCase());
+          cmp = a.anime.title.toLowerCase().compareTo(
+            b.anime.title.toLowerCase(),
+          );
         case 'list_score':
           cmp = a.listStatus.score.compareTo(b.listStatus.score);
         case 'start_date':
-          cmp = (a.listStatus.startDate ?? '')
-              .compareTo(b.listStatus.startDate ?? '');
+          cmp = (a.listStatus.startDate ?? '').compareTo(
+            b.listStatus.startDate ?? '',
+          );
         case 'popularity':
-          cmp = (a.anime.popularity ?? 999999)
-              .compareTo(b.anime.popularity ?? 999999);
+          cmp = (a.anime.popularity ?? 999999).compareTo(
+            b.anime.popularity ?? 999999,
+          );
         case 'list_users':
-          cmp = (a.anime.numListUsers ?? 0)
-              .compareTo(b.anime.numListUsers ?? 0);
+          cmp = (a.anime.numListUsers ?? 0).compareTo(
+            b.anime.numListUsers ?? 0,
+          );
         case 'scoring_users':
-          cmp = (a.anime.numScoringUsers ?? 0)
-              .compareTo(b.anime.numScoringUsers ?? 0);
+          cmp = (a.anime.numScoringUsers ?? 0).compareTo(
+            b.anime.numScoringUsers ?? 0,
+          );
         case 'score':
           cmp = (a.anime.mean ?? 0).compareTo(b.anime.mean ?? 0);
         case 'updated_at':
         default:
-          cmp = (a.listStatus.updatedAt ?? '')
-              .compareTo(b.listStatus.updatedAt ?? '');
+          cmp = (a.listStatus.updatedAt ?? '').compareTo(
+            b.listStatus.updatedAt ?? '',
+          );
       }
       return f.sortDesc ? -cmp : cmp;
     });
@@ -111,34 +110,29 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
   }
 
   List<MangaListEntry> _applyMangaFilterSort(
-      List<MangaListEntry> items, ListFilterState f) {
+    List<MangaListEntry> items,
+    ListFilterState f,
+  ) {
     var out = items;
     if (_searchQuery.isNotEmpty) {
       out = out
-          .where((e) =>
-              e.manga.title.toLowerCase().contains(_searchQuery))
+          .where((e) => e.manga.title.toLowerCase().contains(_searchQuery))
           .toList();
     }
     if (f.mangaTypes.isNotEmpty) {
-      out = out
-          .where((e) => f.mangaTypes.contains(e.manga.mediaType))
-          .toList();
+      out = out.where((e) => f.mangaTypes.contains(e.manga.mediaType)).toList();
     }
     if (f.mangaStatuses.isNotEmpty) {
-      out = out
-          .where((e) => f.mangaStatuses.contains(e.manga.status))
-          .toList();
+      out = out.where((e) => f.mangaStatuses.contains(e.manga.status)).toList();
     }
     if (f.genresInclude.isNotEmpty) {
       out = out
-          .where((e) =>
-              f.genresInclude.any((g) => e.manga.genres.contains(g)))
+          .where((e) => f.genresInclude.any((g) => e.manga.genres.contains(g)))
           .toList();
     }
     if (f.genresExclude.isNotEmpty) {
       out = out
-          .where((e) =>
-              !f.genresExclude.any((g) => e.manga.genres.contains(g)))
+          .where((e) => !f.genresExclude.any((g) => e.manga.genres.contains(g)))
           .toList();
     }
     final sorted = List<MangaListEntry>.of(out);
@@ -146,29 +140,34 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
       final int cmp;
       switch (f.sortBy) {
         case 'title':
-          cmp = a.manga.title
-              .toLowerCase()
-              .compareTo(b.manga.title.toLowerCase());
+          cmp = a.manga.title.toLowerCase().compareTo(
+            b.manga.title.toLowerCase(),
+          );
         case 'list_score':
           cmp = a.listStatus.score.compareTo(b.listStatus.score);
         case 'start_date':
-          cmp = (a.listStatus.startDate ?? '')
-              .compareTo(b.listStatus.startDate ?? '');
+          cmp = (a.listStatus.startDate ?? '').compareTo(
+            b.listStatus.startDate ?? '',
+          );
         case 'popularity':
-          cmp = (a.manga.popularity ?? 999999)
-              .compareTo(b.manga.popularity ?? 999999);
+          cmp = (a.manga.popularity ?? 999999).compareTo(
+            b.manga.popularity ?? 999999,
+          );
         case 'list_users':
-          cmp = (a.manga.numListUsers ?? 0)
-              .compareTo(b.manga.numListUsers ?? 0);
+          cmp = (a.manga.numListUsers ?? 0).compareTo(
+            b.manga.numListUsers ?? 0,
+          );
         case 'scoring_users':
-          cmp = (a.manga.numScoringUsers ?? 0)
-              .compareTo(b.manga.numScoringUsers ?? 0);
+          cmp = (a.manga.numScoringUsers ?? 0).compareTo(
+            b.manga.numScoringUsers ?? 0,
+          );
         case 'score':
           cmp = (a.manga.mean ?? 0).compareTo(b.manga.mean ?? 0);
         case 'updated_at':
         default:
-          cmp = (a.listStatus.updatedAt ?? '')
-              .compareTo(b.listStatus.updatedAt ?? '');
+          cmp = (a.listStatus.updatedAt ?? '').compareTo(
+            b.listStatus.updatedAt ?? '',
+          );
       }
       return f.sortDesc ? -cmp : cmp;
     });
@@ -188,9 +187,7 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
                 children: [
                   Text(
                     'My List',
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineMedium
+                    style: Theme.of(context).textTheme.headlineMedium
                         ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   const Spacer(),
@@ -204,11 +201,8 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
                           child: const Icon(Icons.filter_list),
                         ),
                         tooltip: 'Sort & filter',
-                        onPressed: () => showListFilterSheet(
-                          context,
-                          ref,
-                          kind: _kind,
-                        ),
+                        onPressed: () =>
+                            showListFilterSheet(context, ref, kind: _kind),
                       );
                     },
                   ),
@@ -216,8 +210,7 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
               ),
             ),
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
@@ -235,8 +228,7 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(vertical: 8),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
                   isDense: true,
                 ),
                 onChanged: (v) =>
@@ -295,8 +287,7 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
                       selected: _status == s,
                       onSelected: (_) {
                         HapticFeedback.selectionClick();
-                        setState(
-                            () => _status = _status == s ? null : s);
+                        setState(() => _status = _status == s ? null : s);
                       },
                     ),
                   );
@@ -305,9 +296,7 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
             ),
             const SizedBox(height: 8),
             Expanded(
-              child: _kind == ListKind.anime
-                  ? _animeList()
-                  : _mangaList(),
+              child: _kind == ListKind.anime ? _animeList() : _mangaList(),
             ),
           ],
         ),
@@ -332,34 +321,37 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
             separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (_, i) {
               final e = shown[i];
-              return _ListRow(
-                id: e.anime.id,
-                kind: 'anime',
-                imageUrl: e.anime.imageUrl,
-                title: e.anime.title,
-                mean: e.anime.mean,
-                numListUsers: e.anime.numListUsers,
-                listStatus: e.listStatus,
-                mediaType: e.anime.mediaType,
-                total: e.anime.numEpisodes,
-                unit: 'ep',
-                genres: e.anime.genres,
-                isAiring: e.anime.isAiring,
-                broadcastDay: e.anime.broadcastDay,
-                broadcastTime: e.anime.broadcastTime,
-                airedFrom: e.anime.airedFrom,
-                compact: filter.compactRows,
-                onTap: () => context.push('/detail/anime/${e.anime.id}'),
-                onEdit: () => showEditEntrySheet(
-                  context,
-                  ref,
-                  kind: ListKind.anime,
+              return Entrance(
+                index: i,
+                child: _ListRow(
                   id: e.anime.id,
+                  kind: 'anime',
+                  imageUrl: e.anime.imageUrl,
                   title: e.anime.title,
-                  status: e.listStatus,
+                  mean: e.anime.mean,
+                  numListUsers: e.anime.numListUsers,
+                  listStatus: e.listStatus,
+                  mediaType: e.anime.mediaType,
                   total: e.anime.numEpisodes,
+                  unit: 'ep',
+                  genres: e.anime.genres,
+                  isAiring: e.anime.isAiring,
+                  broadcastDay: e.anime.broadcastDay,
+                  broadcastTime: e.anime.broadcastTime,
+                  airedFrom: e.anime.airedFrom,
+                  compact: filter.compactRows,
+                  onTap: () => context.push('/detail/anime/${e.anime.id}'),
+                  onEdit: () => showEditEntrySheet(
+                    context,
+                    ref,
+                    kind: ListKind.anime,
+                    id: e.anime.id,
+                    title: e.anime.title,
+                    status: e.listStatus,
+                    total: e.anime.numEpisodes,
+                  ),
+                  onStep: (delta) => _stepAnime(e, delta),
                 ),
-                onStep: (delta) => _stepAnime(e, delta),
               );
             },
           ),
@@ -371,10 +363,8 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
         separatorBuilder: (_, _) => const SizedBox(height: 10),
         itemBuilder: (_, _) => const SkeletonListRow(),
       ),
-      error: (e, _) => AsyncSection.error(
-        error: e,
-        onRetry: () => invalidateMyLists(ref),
-      ),
+      error: (e, _) =>
+          AsyncSection.error(error: e, onRetry: () => invalidateMyLists(ref)),
     );
   }
 
@@ -395,34 +385,37 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
             separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (_, i) {
               final e = shown[i];
-              return _ListRow(
-                id: e.manga.id,
-                kind: 'manga',
-                imageUrl: e.manga.imageUrl,
-                title: e.manga.title,
-                mean: e.manga.mean,
-                numListUsers: e.manga.numListUsers,
-                listStatus: e.listStatus,
-                mediaType: e.manga.mediaType,
-                total: e.manga.numChapters,
-                unit: 'ch',
-                genres: e.manga.genres,
-                isAiring: false,
-                broadcastDay: null,
-                broadcastTime: null,
-                airedFrom: null,
-                compact: filter.compactRows,
-                onTap: () => context.push('/detail/manga/${e.manga.id}'),
-                onEdit: () => showEditEntrySheet(
-                  context,
-                  ref,
-                  kind: ListKind.manga,
+              return Entrance(
+                index: i,
+                child: _ListRow(
                   id: e.manga.id,
+                  kind: 'manga',
+                  imageUrl: e.manga.imageUrl,
                   title: e.manga.title,
-                  status: e.listStatus,
+                  mean: e.manga.mean,
+                  numListUsers: e.manga.numListUsers,
+                  listStatus: e.listStatus,
+                  mediaType: e.manga.mediaType,
                   total: e.manga.numChapters,
+                  unit: 'ch',
+                  genres: e.manga.genres,
+                  isAiring: false,
+                  broadcastDay: null,
+                  broadcastTime: null,
+                  airedFrom: null,
+                  compact: filter.compactRows,
+                  onTap: () => context.push('/detail/manga/${e.manga.id}'),
+                  onEdit: () => showEditEntrySheet(
+                    context,
+                    ref,
+                    kind: ListKind.manga,
+                    id: e.manga.id,
+                    title: e.manga.title,
+                    status: e.listStatus,
+                    total: e.manga.numChapters,
+                  ),
+                  onStep: (delta) => _stepManga(e, delta),
                 ),
-                onStep: (delta) => _stepManga(e, delta),
               );
             },
           ),
@@ -434,10 +427,8 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
         separatorBuilder: (_, _) => const SizedBox(height: 10),
         itemBuilder: (_, _) => const SkeletonListRow(),
       ),
-      error: (e, _) => AsyncSection.error(
-        error: e,
-        onRetry: () => invalidateMyLists(ref),
-      ),
+      error: (e, _) =>
+          AsyncSection.error(error: e, onRetry: () => invalidateMyLists(ref)),
     );
   }
 
@@ -529,8 +520,7 @@ class _ListRowState extends State<_ListRow> {
     if (widget.isAiring &&
         widget.broadcastDay != null &&
         widget.broadcastTime != null) {
-      _timer =
-          Timer.periodic(const Duration(seconds: 1), (_) {
+      _timer = Timer.periodic(const Duration(seconds: 1), (_) {
         if (mounted) setState(() {});
       });
     }
@@ -559,11 +549,12 @@ class _ListRowState extends State<_ListRow> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               PosterImage(
-                  url: widget.imageUrl,
-                  title: widget.title,
-                  width: widget.compact ? 36 : 64,
-                  height: widget.compact ? 52 : 92,
-                  heroTag: 'poster-${widget.kind}-${widget.id}'),
+                url: widget.imageUrl,
+                title: widget.title,
+                width: widget.compact ? 36 : 64,
+                height: widget.compact ? 52 : 92,
+                heroTag: 'poster-${widget.kind}-${widget.id}',
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -573,31 +564,35 @@ class _ListRowState extends State<_ListRow> {
                     Row(
                       children: [
                         if (widget.mean != null) ...[
-                          const Icon(Icons.star,
-                              size: 14, color: Colors.amber),
+                          const Icon(Icons.star, size: 14, color: Colors.amber),
                           const SizedBox(width: 2),
                           Text(
                             widget.mean!.toStringAsFixed(
-                                widget.mean! >= 10 ? 0 : 2),
+                              widget.mean! >= 10 ? 0 : 2,
+                            ),
                             style: textTheme.labelLarge?.copyWith(
-                                fontWeight: FontWeight.bold),
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           if (widget.numListUsers != null)
                             Text(
                               ' (${_compactNum(widget.numListUsers!)})',
                               style: textTheme.labelSmall?.copyWith(
-                                  color: scheme.onSurfaceVariant),
+                                color: scheme.onSurfaceVariant,
+                              ),
                             ),
                           const SizedBox(width: 6),
                         ],
                         _StatusBadge(status: ls.status),
                         const Spacer(),
-                        const Icon(Icons.star,
-                            size: 14, color: Colors.amber),
+                        const Icon(Icons.star, size: 14, color: Colors.amber),
                         const SizedBox(width: 2),
-                        Text('${ls.score}',
-                            style: textTheme.labelLarge?.copyWith(
-                                fontWeight: FontWeight.bold)),
+                        Text(
+                          '${ls.score}',
+                          style: textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -605,18 +600,34 @@ class _ListRowState extends State<_ListRow> {
                       widget.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w600),
+                      style: textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                    // Airing countdown.
+                    // Airing countdown with a subtle tick pulse each second.
                     if (widget.isAiring)
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
-                        child: Text(
-                          _airingLine(),
-                          style: textTheme.labelMedium?.copyWith(
-                            color: scheme.primary,
-                            fontWeight: FontWeight.w600,
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          transitionBuilder: (child, animation) =>
+                              ScaleTransition(
+                                scale: Tween<double>(
+                                  begin: 0.92,
+                                  end: 1.0,
+                                ).animate(animation),
+                                child: FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                ),
+                              ),
+                          child: Text(
+                            _airingLine(),
+                            key: ValueKey(_airingLine()),
+                            style: textTheme.labelMedium?.copyWith(
+                              color: scheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
@@ -636,7 +647,8 @@ class _ListRowState extends State<_ListRow> {
                         Text(
                           '$progress ${widget.unit}',
                           style: textTheme.labelLarge?.copyWith(
-                              fontWeight: FontWeight.bold),
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         const Spacer(),
                         _StepButton(
@@ -676,9 +688,11 @@ class _ListRowState extends State<_ListRow> {
     final parts = <String>[];
     final type = _prettyMediaType(widget.mediaType);
     if (type != null) {
-      parts.add(widget.total != null && widget.total! > 0
-          ? '$type (${widget.total} ${widget.unit})'
-          : type);
+      parts.add(
+        widget.total != null && widget.total! > 0
+            ? '$type (${widget.total} ${widget.unit})'
+            : type,
+      );
     }
     if (widget.genres.isNotEmpty) {
       parts.add(widget.genres.take(3).join(', '));
@@ -736,10 +750,14 @@ class _ListRowState extends State<_ListRow> {
     final hour = int.tryParse(parts[0]);
     final minute = int.tryParse(parts[1]);
     if (hour == null || minute == null || weekday == null) return null;
-    final jstNow =
-        DateTime.now().toUtc().add(const Duration(hours: 9));
+    final jstNow = DateTime.now().toUtc().add(const Duration(hours: 9));
     var candidate = DateTime.utc(
-        jstNow.year, jstNow.month, jstNow.day, hour, minute);
+      jstNow.year,
+      jstNow.month,
+      jstNow.day,
+      hour,
+      minute,
+    );
     var daysAhead = (weekday - candidate.weekday) % 7;
     if (daysAhead == 0 && !candidate.isAfter(jstNow)) daysAhead = 7;
     candidate = candidate.add(Duration(days: daysAhead));
@@ -747,31 +765,31 @@ class _ListRowState extends State<_ListRow> {
   }
 
   int? _weekday(String day) => switch (day.toLowerCase()) {
-        'monday' || 'mondays' => DateTime.monday,
-        'tuesday' || 'tuesdays' => DateTime.tuesday,
-        'wednesday' || 'wednesdays' => DateTime.wednesday,
-        'thursday' || 'thursdays' => DateTime.thursday,
-        'friday' || 'fridays' => DateTime.friday,
-        'saturday' || 'saturdays' => DateTime.saturday,
-        'sunday' || 'sundays' => DateTime.sunday,
-        _ => null,
-      };
+    'monday' || 'mondays' => DateTime.monday,
+    'tuesday' || 'tuesdays' => DateTime.tuesday,
+    'wednesday' || 'wednesdays' => DateTime.wednesday,
+    'thursday' || 'thursdays' => DateTime.thursday,
+    'friday' || 'fridays' => DateTime.friday,
+    'saturday' || 'saturdays' => DateTime.saturday,
+    'sunday' || 'sundays' => DateTime.sunday,
+    _ => null,
+  };
 
   String? _prettyMediaType(String? t) => switch (t) {
-        'tv' => 'TV',
-        'ova' => 'OVA',
-        'movie' => 'Movie',
-        'special' => 'Special',
-        'ona' => 'ONA',
-        'music' => 'Music',
-        'manga' => 'Manga',
-        'novel' => 'Novel',
-        'one_shot' => 'One-shot',
-        'doujinshi' => 'Doujinshi',
-        'manhwa' => 'Manhwa',
-        'manhua' => 'Manhua',
-        _ => t,
-      };
+    'tv' => 'TV',
+    'ova' => 'OVA',
+    'movie' => 'Movie',
+    'special' => 'Special',
+    'ona' => 'ONA',
+    'music' => 'Music',
+    'manga' => 'Manga',
+    'novel' => 'Novel',
+    'one_shot' => 'One-shot',
+    'doujinshi' => 'Doujinshi',
+    'manhwa' => 'Manhwa',
+    'manhua' => 'Manhua',
+    _ => t,
+  };
 
   String _compactNum(int n) {
     if (n >= 1000000) {
@@ -803,8 +821,7 @@ class _StatusBadge extends StatelessWidget {
       _ => ('?', Colors.grey),
     };
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(12),
@@ -884,8 +901,18 @@ Future<void> showEditEntrySheet(
     final dt = DateTime.tryParse(ymd);
     if (dt == null) return ymd;
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
   }
@@ -1019,27 +1046,25 @@ Future<void> showEditEntrySheet(
                 color: selected
                     ? scheme.onPrimaryContainer
                     : scheme.onSurfaceVariant,
-                fontWeight:
-                    selected ? FontWeight.bold : FontWeight.normal,
+                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
               ),
             ),
           );
         }
 
         Widget sectionTitle(String text) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                text,
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
-            );
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text(
+            text,
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        );
 
         // Episode/chapter pills: window around current value.
         final epStart = (newProgress - 4).clamp(0, 1 << 30);
-        final epEnd =
-            (total != null && total > 0) ? total : newProgress + 8;
+        final epEnd = (total != null && total > 0) ? total : newProgress + 8;
 
         return Padding(
           padding: EdgeInsets.only(
@@ -1070,8 +1095,9 @@ Future<void> showEditEntrySheet(
                   ),
                   Text(
                     title,
-                    style: theme.textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1080,8 +1106,9 @@ Future<void> showEditEntrySheet(
                   // ---------- Your List Status ----------
                   Text(
                     'Your List Status',
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   sectionTitle('Status'),
@@ -1093,8 +1120,7 @@ Future<void> showEditEntrySheet(
                           pill(
                             label: statusLabel(s),
                             selected: newStatus == s,
-                            onTap: () =>
-                                setSheetState(() => newStatus = s),
+                            onTap: () => setSheetState(() => newStatus = s),
                           ),
                       ],
                     ),
@@ -1102,18 +1128,24 @@ Future<void> showEditEntrySheet(
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      Text('$progressNoun Seen',
-                          style: theme.textTheme.labelLarge),
+                      Text(
+                        '$progressNoun Seen',
+                        style: theme.textTheme.labelLarge,
+                      ),
                       const Spacer(),
                       _StepButton(
                         icon: Icons.remove,
-                        onTap: () => setSheetState(() => newProgress =
-                            (newProgress - 1).clamp(0, 1 << 30)),
+                        onTap: () => setSheetState(
+                          () =>
+                              newProgress = (newProgress - 1).clamp(0, 1 << 30),
+                        ),
                       ),
                       _StepButton(
                         icon: Icons.add,
-                        onTap: () => setSheetState(() => newProgress =
-                            (newProgress + 1).clamp(0, 1 << 30)),
+                        onTap: () => setSheetState(
+                          () =>
+                              newProgress = (newProgress + 1).clamp(0, 1 << 30),
+                        ),
                       ),
                     ],
                   ),
@@ -1128,8 +1160,7 @@ Future<void> showEditEntrySheet(
                         return pill(
                           label: '$n',
                           selected: n == newProgress,
-                          onTap: () =>
-                              setSheetState(() => newProgress = n),
+                          onTap: () => setSheetState(() => newProgress = n),
                         );
                       },
                     ),
@@ -1144,8 +1175,7 @@ Future<void> showEditEntrySheet(
                           pill(
                             label: s == 0 ? '—' : '$s',
                             selected: newScore == s,
-                            onTap: () =>
-                                setSheetState(() => newScore = s),
+                            onTap: () => setSheetState(() => newScore = s),
                           ),
                       ],
                     ),
@@ -1157,60 +1187,70 @@ Future<void> showEditEntrySheet(
                     tilePadding: EdgeInsets.zero,
                     title: Text(
                       '$rewatchNoun Status',
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.bold),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     children: [
                       Row(
                         children: [
                           Expanded(
                             child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('$rewatchNoun ing',
-                                    style: theme.textTheme.labelLarge),
+                                Text(
+                                  '$rewatchNoun ing',
+                                  style: theme.textTheme.labelLarge,
+                                ),
                                 const SizedBox(height: 4),
                                 Switch(
                                   value: newRewatching,
-                                  onChanged: (v) => setSheetState(
-                                      () => newRewatching = v),
+                                  onChanged: (v) =>
+                                      setSheetState(() => newRewatching = v),
                                 ),
                               ],
                             ),
                           ),
                           Expanded(
                             child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Times $rewatchNoun ed',
-                                    style: theme.textTheme.labelLarge),
+                                Text(
+                                  'Times $rewatchNoun ed',
+                                  style: theme.textTheme.labelLarge,
+                                ),
                                 const SizedBox(height: 4),
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     _StepButton(
                                       icon: Icons.remove,
-                                      onTap: () => setSheetState(() =>
-                                          newTimesRewatched =
-                                              (newTimesRewatched - 1)
-                                                  .clamp(0, 1 << 30)),
+                                      onTap: () => setSheetState(
+                                        () => newTimesRewatched =
+                                            (newTimesRewatched - 1).clamp(
+                                              0,
+                                              1 << 30,
+                                            ),
+                                      ),
                                     ),
                                     Padding(
-                                      padding:
-                                          const EdgeInsets.symmetric(
-                                              horizontal: 8),
-                                      child: Text('$newTimesRewatched',
-                                          style: theme
-                                              .textTheme.titleMedium),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                      ),
+                                      child: Text(
+                                        '$newTimesRewatched',
+                                        style: theme.textTheme.titleMedium,
+                                      ),
                                     ),
                                     _StepButton(
                                       icon: Icons.add,
-                                      onTap: () => setSheetState(() =>
-                                          newTimesRewatched =
-                                              (newTimesRewatched + 1)
-                                                  .clamp(0, 1 << 30)),
+                                      onTap: () => setSheetState(
+                                        () => newTimesRewatched =
+                                            (newTimesRewatched + 1).clamp(
+                                              0,
+                                              1 << 30,
+                                            ),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -1229,8 +1269,8 @@ Future<void> showEditEntrySheet(
                               pill(
                                 label: rewatchLabels[v],
                                 selected: newRewatchValue == v,
-                                onTap: () => setSheetState(
-                                    () => newRewatchValue = v),
+                                onTap: () =>
+                                    setSheetState(() => newRewatchValue = v),
                               ),
                           ],
                         ),
@@ -1244,23 +1284,24 @@ Future<void> showEditEntrySheet(
                     tilePadding: EdgeInsets.zero,
                     title: Text(
                       'Dates & Priority',
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.bold),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     children: [
                       Row(
                         children: [
                           Expanded(
                             child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 sectionTitle('Start Date'),
                                 OutlinedButton.icon(
                                   onPressed: () => pickDate(true),
                                   icon: const Icon(
-                                      Icons.calendar_today,
-                                      size: 16),
+                                    Icons.calendar_today,
+                                    size: 16,
+                                  ),
                                   label: Text(fmtDate(newStartDate)),
                                 ),
                               ],
@@ -1268,15 +1309,15 @@ Future<void> showEditEntrySheet(
                           ),
                           Expanded(
                             child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 sectionTitle('Finish Date'),
                                 OutlinedButton.icon(
                                   onPressed: () => pickDate(false),
                                   icon: const Icon(
-                                      Icons.calendar_today,
-                                      size: 16),
+                                    Icons.calendar_today,
+                                    size: 16,
+                                  ),
                                   label: Text(fmtDate(newFinishDate)),
                                 ),
                               ],
@@ -1284,24 +1325,20 @@ Future<void> showEditEntrySheet(
                           ),
                           Expanded(
                             child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 sectionTitle('Priority'),
                                 SingleChildScrollView(
                                   scrollDirection: Axis.horizontal,
                                   child: Row(
                                     children: [
-                                      for (var pr = 0;
-                                          pr <= 2;
-                                          pr++)
+                                      for (var pr = 0; pr <= 2; pr++)
                                         pill(
                                           label: priorityLabels[pr],
-                                          selected:
-                                              newPriority == pr,
+                                          selected: newPriority == pr,
                                           onTap: () => setSheetState(
-                                              () =>
-                                                  newPriority = pr),
+                                            () => newPriority = pr,
+                                          ),
                                         ),
                                     ],
                                   ),
@@ -1320,8 +1357,9 @@ Future<void> showEditEntrySheet(
                     tilePadding: EdgeInsets.zero,
                     title: Text(
                       'Others',
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.bold),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     children: [
                       sectionTitle('Comments'),
@@ -1343,8 +1381,7 @@ Future<void> showEditEntrySheet(
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: () async {
-                            final repo =
-                                ref.read(listRepositoryProvider);
+                            final repo = ref.read(listRepositoryProvider);
                             try {
                               if (isAnime) {
                                 await repo.deleteAnimeEntry(id);
@@ -1357,10 +1394,9 @@ Future<void> showEditEntrySheet(
                               }
                             } catch (e) {
                               if (context.mounted) {
-                                ScaffoldMessenger.of(context)
-                                    .showSnackBar(SnackBar(
-                                        content: Text(
-                                            'Delete failed: $e')));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Delete failed: $e')),
+                                );
                               }
                             }
                           },
