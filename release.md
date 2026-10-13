@@ -1,10 +1,7 @@
-# MALClient v1.0.1
+# MALClient v1.0.2
 
-Login now works end-to-end, plus a theme setup step after signing in.
+Login fixes and a new app icon.
 
-- Log in with MyAnimeList (OAuth2 PKCE) in an in-app browser — no more external browser jump
-- "Logged in as" confirmation page after signing in
-- New "Select a Theme" setup page: 12 accent colors, auto/light/dark/black (AMOLED) theme modes, font picker
-- Theme setup also available anytime from Settings
-- Fixed: OAuth redirect no longer lands on an error page; login reliably reaches Home
-- Vector launcher icon (no missing-image build issues)
+- Fixed MyAnimeList login: token exchange now handles MAL's strict redirect-URI check and client authentication (client secret, with automatic fallback)
+- New kitsune launcher icon, also shown on the login screen
+- Login errors now show MAL's actual reason instead of a generic message
