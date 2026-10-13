@@ -153,7 +153,6 @@ class PosterCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final height = width * 1.42;
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
@@ -161,25 +160,31 @@ class PosterCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Stack(
-              children: [
-                PosterImage(
-                  url: imageUrl,
-                  title: title,
-                  width: width,
-                  height: height,
-                ),
-                Positioned(
-                  top: 6,
-                  left: 6,
-                  child: ScoreBadge(mean: mean, members: members),
-                ),
-                Positioned(
-                  top: 6,
-                  right: 6,
-                  child: RankBadge(rank: rank),
-                ),
-              ],
+            // AspectRatio instead of height = width * 1.42: the width can be
+            // double.infinity (grids), which made the height infinite and the
+            // poster render blank.
+            AspectRatio(
+              aspectRatio: 1 / 1.42,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: PosterImage(
+                      url: imageUrl,
+                      title: title,
+                    ),
+                  ),
+                  Positioned(
+                    top: 6,
+                    left: 6,
+                    child: ScoreBadge(mean: mean, members: members),
+                  ),
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: RankBadge(rank: rank),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 6),
             Text(
