@@ -44,6 +44,11 @@ class ProfileScreen extends ConsumerWidget {
                   onTap: () => context.push('/settings'),
                 ),
                 _MenuTile(
+                  icon: Icons.history,
+                  title: 'History',
+                  onTap: () => context.push('/history'),
+                ),
+                _MenuTile(
                   icon: Icons.info_outline,
                   title: 'About MALClient',
                   onTap: () => showAboutDialog(

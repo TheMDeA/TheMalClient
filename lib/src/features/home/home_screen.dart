@@ -36,7 +36,7 @@ class HomeScreen extends ConsumerWidget {
               SliverToBoxAdapter(
                 child: SectionHeader(
                   title: 'News',
-                  onSeeAll: () => _soon(context, 'News'),
+                  onSeeAll: () => context.push('/news'),
                 ),
               ),
               SliverToBoxAdapter(child: _newsRail(context, ref, news)),
