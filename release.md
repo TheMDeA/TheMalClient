@@ -1,5 +1,6 @@
 # MyAL v1.2.7
 
+- Detail banner now glows with the poster's dominant color
 - Detail pages have a full-width banner header again (poster cover with title overlay), keeping all info: score, rank, popularity, episodes, format, aired date, studios, members
 - Fixed the accent picker checkmark being invisible on light accent colors
 - List status colors (Watching, Completed…) now adapt to light/dark theme
