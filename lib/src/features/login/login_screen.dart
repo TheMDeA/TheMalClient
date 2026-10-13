@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:malclient/src/core/config.dart';
 import 'package:malclient/src/core/providers.dart';
+import 'package:malclient/src/data/repositories/auth_repository.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// First screen: MAL OAuth login or demo mode.
@@ -84,7 +85,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     ref.listen(authControllerProvider, (_, next) {
       if (next.hasError && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Login failed: ${next.error}')),
+          SnackBar(
+            content:
+                Text('Login failed: ${AuthRepository.friendlyError(next.error)}'),
+          ),
         );
       }
     });

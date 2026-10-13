@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for all network access (API, images, OAuth). The Flutter
+         template only includes this in the debug/profile manifests, so
+         release builds silently fail without it. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="MALClient"
         android:name="${applicationName}"

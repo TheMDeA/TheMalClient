@@ -134,20 +134,52 @@ class AuthRepository {
     if (verifier == null) {
       throw StateError('No PKCE verifier stored; restart login.');
     }
-    final res = await _tokenDio.post(
-      malTokenUrl,
-      data: {
-        'grant_type': 'authorization_code',
-        'client_id': malClientId,
-        'code': code,
-        'code_verifier': verifier,
-        'redirect_uri': malRedirectUri,
-      },
-      options: Options(contentType: Headers.formUrlEncodedContentType),
-    );
-    await _storage.delete(key: _kVerifier);
-    await setDemoMode(false);
-    await _saveTokens(res.data as Map<String, dynamic>);
+    // The network can hiccup right as the browser hands control back;
+    // retry transient connection failures before giving up.
+    const attempts = 3;
+    for (var i = 1;; i++) {
+      try {
+        final res = await _tokenDio.post(
+          malTokenUrl,
+          data: {
+            'grant_type': 'authorization_code',
+            'client_id': malClientId,
+            'code': code,
+            'code_verifier': verifier,
+            'redirect_uri': malRedirectUri,
+          },
+          options: Options(contentType: Headers.formUrlEncodedContentType),
+        );
+        await _storage.delete(key: _kVerifier);
+        await setDemoMode(false);
+        await _saveTokens(res.data as Map<String, dynamic>);
+        return;
+      } on DioException catch (e) {
+        if (e.type == DioExceptionType.connectionError && i < attempts) {
+          await Future.delayed(Duration(seconds: i));
+          continue;
+        }
+        rethrow;
+      }
+    }
+  }
+
+  /// Human-readable explanation for auth failures (shown on the login page).
+  static String friendlyError(Object? e) {
+    if (e is DioException) {
+      final detail = '${e.message ?? ''} ${e.error ?? ''}';
+      if (e.type == DioExceptionType.connectionError ||
+          detail.contains('Failed host lookup')) {
+        return "Couldn't reach myanimelist.net. Check your connection — "
+            'some networks block MyAnimeList: try mobile data instead of '
+            'Wi-Fi (or vice versa), a VPN, or set Private DNS to "dns.google" '
+            'in Android settings.';
+      }
+      if (e.response?.statusCode == 400) {
+        return 'MyAnimeList rejected the login request. Please try again.';
+      }
+    }
+    return e.toString();
   }
 
   Future<void> logout() async {
