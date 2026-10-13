@@ -83,6 +83,8 @@ class AnimeSummary {
   final String? broadcastTime; // e.g. "23:45"
   final String? studio;
   final int? numListUsers;
+  final int? numScoringUsers;
+  final String? rating; // g | pg | pg_13 | r | r_plus | rx
 
   const AnimeSummary({
     required this.id,
@@ -102,6 +104,8 @@ class AnimeSummary {
     this.broadcastTime,
     this.studio,
     this.numListUsers,
+    this.numScoringUsers,
+    this.rating,
   });
 
   bool get isAiring => status == 'currently_airing';
@@ -137,6 +141,8 @@ class AnimeSummary {
       broadcastTime: broadcast?['start_time'] as String?,
       studio: studio,
       numListUsers: (node['num_list_users'] as num?)?.toInt(),
+      numScoringUsers: (node['num_scoring_users'] as num?)?.toInt(),
+      rating: _str(node, 'rating'),
     );
   }
 }
@@ -155,6 +161,7 @@ class MangaSummary {
   final List<String> genres;
   final String? synopsis;
   final int? numListUsers;
+  final int? numScoringUsers;
 
   const MangaSummary({
     required this.id,
@@ -170,6 +177,7 @@ class MangaSummary {
     this.genres = const [],
     this.synopsis,
     this.numListUsers,
+    this.numScoringUsers,
   });
 
   factory MangaSummary.fromMal(Map<String, dynamic> json) {
@@ -190,6 +198,7 @@ class MangaSummary {
       genres: _genres(node),
       synopsis: _str(node, 'synopsis'),
       numListUsers: (node['num_list_users'] as num?)?.toInt(),
+      numScoringUsers: (node['num_scoring_users'] as num?)?.toInt(),
     );
   }
 }
@@ -200,33 +209,88 @@ class MyListStatus {
   final int score; // 0..10
   final int progress; // episodes watched / chapters read
   final int? progressVolumes; // manga volumes read
+  final bool isRewatching; // is_rereading for manga
+  final int timesRewatched;
+  final int rewatchValue; // 0..5 (0 = unset)
+  final String? startDate; // YYYY-MM-DD
+  final String? finishDate; // YYYY-MM-DD
+  final int priority; // 0 = low, 1 = medium, 2 = high
+  final String comments;
+  final String? updatedAt; // ISO 8601 from MAL
 
   const MyListStatus({
     required this.status,
     this.score = 0,
     this.progress = 0,
     this.progressVolumes,
+    this.isRewatching = false,
+    this.timesRewatched = 0,
+    this.rewatchValue = 0,
+    this.startDate,
+    this.finishDate,
+    this.priority = 0,
+    this.comments = '',
+    this.updatedAt,
   });
 
   factory MyListStatus.fromMal(Map<String, dynamic> json, ListKind kind) {
+    final isAnime = kind == ListKind.anime;
     return MyListStatus(
       status: (json['status'] ?? '') as String,
       score: (json['score'] as num?)?.toInt() ?? 0,
-      progress: ((kind == ListKind.anime
+      progress: ((isAnime
                   ? json['num_episodes_watched']
                   : json['num_chapters_read']) as num?)
               ?.toInt() ??
           0,
       progressVolumes: (json['num_volumes_read'] as num?)?.toInt(),
+      isRewatching: (isAnime ? json['is_rewatching'] : json['is_rereading'])
+              as bool? ??
+          false,
+      timesRewatched: ((isAnime
+                  ? json['num_times_rewatched']
+                  : json['num_times_reread']) as num?)
+              ?.toInt() ??
+          0,
+      rewatchValue: ((isAnime ? json['rewatch_value'] : json['reread_value'])
+              as num?)
+              ?.toInt() ??
+          0,
+      startDate: json['start_date'] as String?,
+      finishDate: json['finish_date'] as String?,
+      priority: (json['priority'] as num?)?.toInt() ?? 0,
+      comments: (json['comments'] as String?) ?? '',
+      updatedAt: json['updated_at'] as String?,
     );
   }
 
-  MyListStatus copyWith({String? status, int? score, int? progress}) =>
+  MyListStatus copyWith({
+    String? status,
+    int? score,
+    int? progress,
+    int? progressVolumes,
+    bool? isRewatching,
+    int? timesRewatched,
+    int? rewatchValue,
+    String? startDate,
+    String? finishDate,
+    int? priority,
+    String? comments,
+    String? updatedAt,
+  }) =>
       MyListStatus(
         status: status ?? this.status,
         score: score ?? this.score,
         progress: progress ?? this.progress,
-        progressVolumes: progressVolumes,
+        progressVolumes: progressVolumes ?? this.progressVolumes,
+        isRewatching: isRewatching ?? this.isRewatching,
+        timesRewatched: timesRewatched ?? this.timesRewatched,
+        rewatchValue: rewatchValue ?? this.rewatchValue,
+        startDate: startDate ?? this.startDate,
+        finishDate: finishDate ?? this.finishDate,
+        priority: priority ?? this.priority,
+        comments: comments ?? this.comments,
+        updatedAt: updatedAt ?? this.updatedAt,
       );
 }
 
@@ -262,7 +326,6 @@ class AnimeDetail extends AnimeSummary {
   final List<AnimeSummary> related;
   final List<AnimeSummary> recommendations;
   final String? source;
-  final String? rating;
   final MyListStatus? myListStatus;
 
   const AnimeDetail({
@@ -283,10 +346,11 @@ class AnimeDetail extends AnimeSummary {
     super.broadcastTime,
     super.studio,
     super.numListUsers,
+    super.numScoringUsers,
+    super.rating,
     this.related = const [],
     this.recommendations = const [],
     this.source,
-    this.rating,
     this.myListStatus,
   });
 
@@ -436,6 +500,110 @@ class MalUser {
       animeStats: json['anime_statistics'] is Map<String, dynamic>
           ? MalUserStats.fromMal(json['anime_statistics'] as Map<String, dynamic>)
           : const MalUserStats(),
+    );
+  }
+}
+
+/// A character with their voice actors (Jikan `/anime/{id}/characters`).
+class AnimeCharacter {
+  final int malId;
+  final String name;
+  final String? imageUrl;
+  final String role; // "Main" or "Supporting"
+  final List<String> voiceActors; // "Name (Language)"
+
+  const AnimeCharacter({
+    required this.malId,
+    required this.name,
+    this.imageUrl,
+    this.role = '',
+    this.voiceActors = const [],
+  });
+
+  factory AnimeCharacter.fromJikan(Map<String, dynamic> json) {
+    final char = json['character'];
+    final vas = json['voice_actors'];
+    return AnimeCharacter(
+      malId: (char?['mal_id'] as num?)?.toInt() ?? 0,
+      name: (char?['name'] ?? '') as String,
+      imageUrl: char?['images']?['jpg']?['image_url'] as String?,
+      role: (json['role'] ?? '') as String,
+      voiceActors: [
+        if (vas is List)
+          for (final va in vas)
+            if (va is Map<String, dynamic>)
+              '${va['person']?['name'] ?? ''} (${va['language'] ?? ''})',
+      ],
+    );
+  }
+}
+
+/// A staff member (Jikan `/anime/{id}/staff`).
+class AnimeStaff {
+  final int malId;
+  final String name;
+  final String? imageUrl;
+  final List<String> positions;
+
+  const AnimeStaff({
+    required this.malId,
+    required this.name,
+    this.imageUrl,
+    this.positions = const [],
+  });
+
+  factory AnimeStaff.fromJikan(Map<String, dynamic> json) {
+    final person = json['person'];
+    final pos = json['positions'];
+    return AnimeStaff(
+      malId: (person?['mal_id'] as num?)?.toInt() ?? 0,
+      name: (person?['name'] ?? '') as String,
+      imageUrl: person?['images']?['jpg']?['image_url'] as String?,
+      positions: [
+        if (pos is List) for (final p in pos) (p ?? '').toString(),
+      ],
+    );
+  }
+}
+
+/// Aggregate statistics (Jikan `/anime/{id}/statistics`).
+class AnimeStatistics {
+  final int watching;
+  final int completed;
+  final int onHold;
+  final int dropped;
+  final int planToWatch;
+  final int total;
+  final Map<int, double> scorePercent; // score 1..10 -> %
+
+  const AnimeStatistics({
+    this.watching = 0,
+    this.completed = 0,
+    this.onHold = 0,
+    this.dropped = 0,
+    this.planToWatch = 0,
+    this.total = 0,
+    this.scorePercent = const {},
+  });
+
+  factory AnimeStatistics.fromJikan(Map<String, dynamic> json) {
+    final scores = <int, double>{};
+    final s = json['scores'];
+    if (s is Map<String, dynamic>) {
+      for (final e in s.entries) {
+        final score = int.tryParse(e.key);
+        final pct = (e.value?['percentage'] as num?)?.toDouble();
+        if (score != null && pct != null) scores[score] = pct;
+      }
+    }
+    return AnimeStatistics(
+      watching: (json['watching'] as num?)?.toInt() ?? 0,
+      completed: (json['completed'] as num?)?.toInt() ?? 0,
+      onHold: (json['on_hold'] as num?)?.toInt() ?? 0,
+      dropped: (json['dropped'] as num?)?.toInt() ?? 0,
+      planToWatch: (json['plan_to_watch'] as num?)?.toInt() ?? 0,
+      total: (json['total'] as num?)?.toInt() ?? 0,
+      scorePercent: scores,
     );
   }
 }

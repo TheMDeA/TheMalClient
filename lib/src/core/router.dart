@@ -5,11 +5,13 @@ import 'package:malclient/src/core/providers.dart';
 import 'package:malclient/src/data/models/media.dart';
 import 'package:malclient/src/features/detail/detail_screen.dart';
 import 'package:malclient/src/features/discover/discover_screen.dart';
+import 'package:malclient/src/features/history/history_screen.dart';
 import 'package:malclient/src/features/home/home_screen.dart';
 import 'package:malclient/src/features/login/login_screen.dart';
 import 'package:malclient/src/features/mylist/mylist_screen.dart';
 import 'package:malclient/src/features/profile/profile_screen.dart';
 import 'package:malclient/src/features/schedule/schedule_screen.dart';
+import 'package:malclient/src/features/news/news_screen.dart';
 import 'package:malclient/src/features/settings/settings_screen.dart';
 import 'package:malclient/src/features/setup/setup_screen.dart';
 import 'package:malclient/src/features/welcome/welcome_screen.dart';
@@ -142,6 +144,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings',
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/history',
+        builder: (context, state) => const HistoryScreen(),
+      ),
+      GoRoute(
+        path: '/news',
+        builder: (context, state) => const NewsScreen(),
       ),
     ],
   );

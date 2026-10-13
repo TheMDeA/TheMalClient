@@ -28,7 +28,8 @@ class ListRepository {
     final res = await _client.dio.get(
       '/users/@me/animelist',
       queryParameters: {
-        'fields': 'list_status',
+        'fields':
+            'list_status,media_type,status,genres,mean,rank,popularity,num_list_users,num_scoring_users,rating,num_episodes,start_date',
         'limit': 200,
         if (status case final st) 'status': st,
         'sort': 'list_updated_at',
@@ -52,7 +53,8 @@ class ListRepository {
     final res = await _client.dio.get(
       '/users/@me/mangalist',
       queryParameters: {
-        'fields': 'list_status',
+        'fields':
+            'list_status,media_type,status,genres,mean,rank,popularity,num_list_users,num_scoring_users,num_chapters,num_volumes,start_date',
         'limit': 200,
         if (status case final st) 'status': st,
         'sort': 'list_updated_at',
@@ -74,6 +76,13 @@ class ListRepository {
     String? status,
     int? score,
     int? numWatchedEpisodes,
+    bool? isRewatching,
+    int? numTimesRewatched,
+    int? rewatchValue,
+    int? priority,
+    String? comments,
+    String? startDate,
+    String? finishDate,
   }) async {
     if (isDemo) {
       final i = _demoAnime.indexWhere((e) => e.anime.id == id);
@@ -85,6 +94,13 @@ class ListRepository {
           status: status,
           score: score,
           progress: numWatchedEpisodes,
+          isRewatching: isRewatching,
+          timesRewatched: numTimesRewatched,
+          rewatchValue: rewatchValue,
+          priority: priority,
+          comments: comments,
+          startDate: startDate,
+          finishDate: finishDate,
         ),
       );
       return;
@@ -95,6 +111,15 @@ class ListRepository {
     if (numWatchedEpisodes != null) {
       data['num_watched_episodes'] = numWatchedEpisodes;
     }
+    if (isRewatching != null) data['is_rewatching'] = isRewatching;
+    if (numTimesRewatched != null) {
+      data['num_times_rewatched'] = numTimesRewatched;
+    }
+    if (rewatchValue != null) data['rewatch_value'] = rewatchValue;
+    if (priority != null) data['priority'] = priority;
+    if (comments != null) data['comments'] = comments;
+    if (startDate != null) data['start_date'] = startDate;
+    if (finishDate != null) data['finish_date'] = finishDate;
     await _client.dio.patch(
       '/anime/$id/my_list_status',
       data: data,
@@ -108,6 +133,14 @@ class ListRepository {
     String? status,
     int? score,
     int? numReadChapters,
+    int? numReadVolumes,
+    bool? isRereading,
+    int? numTimesReread,
+    int? rereadValue,
+    int? priority,
+    String? comments,
+    String? startDate,
+    String? finishDate,
   }) async {
     if (isDemo) {
       final i = _demoManga.indexWhere((e) => e.manga.id == id);
@@ -119,6 +152,14 @@ class ListRepository {
           status: status,
           score: score,
           progress: numReadChapters,
+          progressVolumes: numReadVolumes,
+          isRewatching: isRereading,
+          timesRewatched: numTimesReread,
+          rewatchValue: rereadValue,
+          priority: priority,
+          comments: comments,
+          startDate: startDate,
+          finishDate: finishDate,
         ),
       );
       return;
@@ -127,6 +168,14 @@ class ListRepository {
     if (status != null) data['status'] = status;
     if (score != null) data['score'] = score;
     if (numReadChapters != null) data['num_chapters_read'] = numReadChapters;
+    if (numReadVolumes != null) data['num_volumes_read'] = numReadVolumes;
+    if (isRereading != null) data['is_rereading'] = isRereading;
+    if (numTimesReread != null) data['num_times_reread'] = numTimesReread;
+    if (rereadValue != null) data['reread_value'] = rereadValue;
+    if (priority != null) data['priority'] = priority;
+    if (comments != null) data['comments'] = comments;
+    if (startDate != null) data['start_date'] = startDate;
+    if (finishDate != null) data['finish_date'] = finishDate;
     await _client.dio.patch(
       '/manga/$id/my_list_status',
       data: data,

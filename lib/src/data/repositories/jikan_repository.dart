@@ -74,6 +74,69 @@ class JikanRepository {
     }
   }
 
+  /// Characters with voice actors (`/anime/{id}/characters`).
+  Future<List<AnimeCharacter>> animeCharacters(int malId) async {
+    try {
+      final res = await _dio.get('/anime/$malId/characters');
+      final data = (res.data as Map<String, dynamic>)['data'];
+      if (data is! List) return const [];
+      final out = [
+        for (final e in data)
+          if (e is Map<String, dynamic>) AnimeCharacter.fromJikan(e)
+      ];
+      // Main characters first.
+      out.sort((a, b) {
+        int rank(String r) => r == 'Main' ? 0 : 1;
+        return rank(a.role).compareTo(rank(b.role));
+      });
+      return out;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Staff (`/anime/{id}/staff`).
+  Future<List<AnimeStaff>> animeStaff(int malId) async {
+    try {
+      final res = await _dio.get('/anime/$malId/staff');
+      final data = (res.data as Map<String, dynamic>)['data'];
+      if (data is! List) return const [];
+      return [
+        for (final e in data)
+          if (e is Map<String, dynamic>) AnimeStaff.fromJikan(e)
+      ];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Aggregate statistics (`/anime/{id}/statistics`).
+  Future<AnimeStatistics?> animeStatistics(int malId) async {
+    try {
+      final res = await _dio.get('/anime/$malId/statistics');
+      final data = (res.data as Map<String, dynamic>)['data'];
+      if (data is! Map<String, dynamic>) return null;
+      return AnimeStatistics.fromJikan(data);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Characters for a manga (`/manga/{id}/characters`).
+  Future<List<AnimeCharacter>> mangaCharacters(int malId) async {
+    try {
+      final res = await _dio.get('/manga/$malId/characters');
+      final data = (res.data as Map<String, dynamic>)['data'];
+      if (data is! List) return const [];
+      return [
+        for (final e in data)
+          if (e is Map<String, dynamic>) AnimeCharacter.fromJikan(e)
+      ];
+    } catch (_) {
+      return const [];
+    }
+  }
+
   /// Aggregated news for the Home rail: pulls news for a few well-known
   /// currently-airing anime and merges the freshest items.
   Future<List<NewsItem>> homeNews() async {
@@ -87,5 +150,35 @@ class JikanRepository {
     }
     if (all.isEmpty) return DemoData.news;
     return all.take(10).toList();
+  }
+
+  /// Full news feed for the News screen: pulls news for a wider set of
+  /// popular anime and merges them newest-first.
+  Future<List<NewsItem>> allNews() async {
+    const ids = [
+      52991, // Frieren
+      21, // One Piece
+      5114, // Fullmetal Alchemist: Brotherhood
+      9253, // Steins;Gate
+      38524, // Attack on Titan S3P2
+      51009, // Jujutsu Kaisen 0
+      52034, // Oshi no Ko
+      38000, // Demon Slayer
+      41467, // Bleach: Thousand-Year Blood War
+      37430, // Bunny Girl Senpai
+      32281, // Your Name
+      28977, // Gintama°
+    ];
+    final all = <NewsItem>[];
+    for (final id in ids) {
+      final items = await animeNews(id, limit: 3);
+      all.addAll(items);
+      // Jikan rate limit: 3 req/s — be polite.
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    }
+    if (all.isEmpty) return DemoData.news;
+    // ISO dates: string comparison == chronological order.
+    all.sort((a, b) => b.date.compareTo(a.date));
+    return all;
   }
 }

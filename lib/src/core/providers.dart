@@ -314,6 +314,35 @@ final homeNewsProvider = FutureProvider<List<NewsItem>>((ref) {
   return ref.watch(jikanRepositoryProvider).homeNews();
 });
 
+/// Full news feed for the News screen.
+final newsProvider = FutureProvider<List<NewsItem>>((ref) {
+  return ref.watch(jikanRepositoryProvider).allNews();
+});
+
+/// Characters for an anime (Jikan).
+final animeCharactersProvider =
+    FutureProvider.family<List<AnimeCharacter>, int>((ref, id) {
+  return ref.watch(jikanRepositoryProvider).animeCharacters(id);
+});
+
+/// Staff for an anime (Jikan).
+final animeStaffProvider =
+    FutureProvider.family<List<AnimeStaff>, int>((ref, id) {
+  return ref.watch(jikanRepositoryProvider).animeStaff(id);
+});
+
+/// Aggregate statistics for an anime (Jikan).
+final animeStatisticsProvider =
+    FutureProvider.family<AnimeStatistics?, int>((ref, id) {
+  return ref.watch(jikanRepositoryProvider).animeStatistics(id);
+});
+
+/// Characters for a manga (Jikan).
+final mangaCharactersProvider =
+    FutureProvider.family<List<AnimeCharacter>, int>((ref, id) {
+  return ref.watch(jikanRepositoryProvider).mangaCharacters(id);
+});
+
 /// My anime list, filtered by status (null = all).
 final myAnimeListProvider =
     FutureProvider.family<List<AnimeListEntry>, String?>((ref, status) {

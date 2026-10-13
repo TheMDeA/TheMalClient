@@ -57,17 +57,30 @@ class MediaRepository {
     return _animeList(res.data);
   }
 
-  Future<List<AnimeSummary>> searchAnime(String query, {int limit = 24}) async {
+  Future<List<AnimeSummary>> searchAnime(
+    String query, {
+    int limit = 24,
+    String? type,
+    String? status,
+    String? rating,
+    String? genres,
+  }) async {
     if (isDemo) {
       final q = query.toLowerCase();
       return DemoData.seasonalAnime
           .where((a) => a.title.toLowerCase().contains(q))
           .toList();
     }
-    final res = await _client.dio.get(
-      '/anime',
-      queryParameters: {'q': query, 'fields': _animeFields, 'limit': limit},
-    );
+    final params = <String, dynamic>{
+      'q': query,
+      'fields': _animeFields,
+      'limit': limit,
+    };
+    if (type != null && type.isNotEmpty) params['type'] = type;
+    if (status != null && status.isNotEmpty) params['status'] = status;
+    if (rating != null && rating.isNotEmpty) params['rating'] = rating;
+    if (genres != null && genres.isNotEmpty) params['genres'] = genres;
+    final res = await _client.dio.get('/anime', queryParameters: params);
     return _animeList(res.data);
   }
 
@@ -122,17 +135,28 @@ class MediaRepository {
     return _mangaList(res.data);
   }
 
-  Future<List<MangaSummary>> searchManga(String query, {int limit = 24}) async {
+  Future<List<MangaSummary>> searchManga(
+    String query, {
+    int limit = 24,
+    String? type,
+    String? status,
+    String? genres,
+  }) async {
     if (isDemo) {
       final q = query.toLowerCase();
       return DemoData.topManga
           .where((m) => m.title.toLowerCase().contains(q))
           .toList();
     }
-    final res = await _client.dio.get(
-      '/manga',
-      queryParameters: {'q': query, 'fields': _mangaFields, 'limit': limit},
-    );
+    final params = <String, dynamic>{
+      'q': query,
+      'fields': _mangaFields,
+      'limit': limit,
+    };
+    if (type != null && type.isNotEmpty) params['type'] = type;
+    if (status != null && status.isNotEmpty) params['status'] = status;
+    if (genres != null && genres.isNotEmpty) params['genres'] = genres;
+    final res = await _client.dio.get('/manga', queryParameters: params);
     return _mangaList(res.data);
   }
 
