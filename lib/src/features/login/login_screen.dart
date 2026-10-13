@@ -77,10 +77,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final auth = ref.watch(authControllerProvider);
+
+    // OAuth failures used to be silent — the page just sat there.
+    // Surface them so a failed token exchange is diagnosable.
+    ref.listen(authControllerProvider, (_, next) {
+      if (next.hasError && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Login failed: ${next.error}')),
+        );
+      }
+    });
 
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
+      body: Stack(
+        children: [
+          SafeArea(
+            child: _loginBody(scheme, textTheme),
+          ),
+          if (auth.isLoading) ...[
+            const ModalBarrier(dismissible: false, color: Colors.black54),
+            const Center(child: CircularProgressIndicator()),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _loginBody(ColorScheme scheme, TextTheme textTheme) {
+    return Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -144,8 +169,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 24),
             ],
           ),
-        ),
-      ),
-    );
+        );
   }
 }

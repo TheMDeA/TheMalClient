@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:malclient/src/core/providers.dart';
@@ -12,9 +13,20 @@ import 'package:malclient/src/features/schedule/schedule_screen.dart';
 import 'package:malclient/src/features/settings/settings_screen.dart';
 import 'package:malclient/src/widgets/app_shell.dart';
 
+/// Bridges the Riverpod auth state into go_router's [refreshListenable] so
+/// `redirect` re-runs when login completes, fails, or the user logs out —
+/// otherwise the app would sit on /login forever after a successful OAuth
+/// exchange because no navigation event fires.
+class _AuthRefreshListenable extends ChangeNotifier {
+  _AuthRefreshListenable(Ref ref) {
+    ref.listen(authControllerProvider, (_, _) => notifyListeners());
+  }
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/login',
+    refreshListenable: _AuthRefreshListenable(ref),
     redirect: (context, state) {
       // The OAuth redirect (malclient://oauth?code=...) is captured and
       // completed by the app_links listener in main.dart. Stop go_router

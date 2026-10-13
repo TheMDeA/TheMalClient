@@ -27,6 +27,11 @@ class MalClientApp extends ConsumerStatefulWidget {
 }
 
 class _MalClientAppState extends ConsumerState<MalClientApp> {
+  /// OAuth codes already handed to the token exchange. The redirect can be
+  /// delivered twice (initial link + stream); MAL codes are single-use, so
+  /// each code must be exchanged exactly once.
+  final _handledCodes = <String>{};
+
   @override
   void initState() {
     super.initState();
@@ -43,7 +48,7 @@ class _MalClientAppState extends ConsumerState<MalClientApp> {
       if (uri.scheme == 'malclient' && uri.host == 'oauth') {
         final code = uri.queryParameters['code'];
         final error = uri.queryParameters['error'];
-        if (code != null && code.isNotEmpty) {
+        if (code != null && code.isNotEmpty && _handledCodes.add(code)) {
           ref.read(authControllerProvider.notifier).completeOAuth(code);
         } else if (error != null && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
