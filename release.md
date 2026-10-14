@@ -1,5 +1,6 @@
-# MyAL v1.2.8
-- Removed the countdown bounce animation in My List (the airing countdown now updates silently)
+# MyAL v1.2.9
+
+- Stepping an episode/chapter up on a "Plan to Watch" / "Plan to Read" entry now flips it to "Watching" / "Reading" automatically
 - Material You dynamic colors: optional system wallpaper colors (Android 12+) in Theme Settings, replacing the accent presets when on
 
 - Performance batch: News screen loads ~5x faster (parallel requests)

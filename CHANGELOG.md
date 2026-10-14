@@ -2,6 +2,10 @@
 
 All notable changes to MALClient (Flutter rewrite) are documented here.
 
+## [1.2.9] - 2026-10-14
+
+- Stepping an episode/chapter up on a "Plan to Watch" / "Plan to Read" entry now flips it to "Watching" / "Reading" automatically
+
 ## [1.2.8] - 2026-10-14
 - Removed the countdown bounce animation in My List (the airing countdown now updates silently)
 - Material You dynamic colors: optional system wallpaper colors (Android 12+) in Theme Settings, replacing the accent presets when on

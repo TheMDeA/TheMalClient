@@ -417,24 +417,42 @@ class MyAnimeList extends AsyncNotifier<List<AnimeListEntry>> {
 
   /// Optimistically sets one entry's progress, persists in the background,
   /// and rolls the cached list back if the request fails.
+  ///
+  /// Stepping an episode up while the entry is "Plan to Watch" also flips
+  /// the status to "Watching" in the same request.
   Future<bool> stepProgress(int id, int next) async {
     final prev = state;
+    final current = switch (prev) {
+      AsyncData(:final value) =>
+        value.where((e) => e.anime.id == id).firstOrNull,
+      _ => null,
+    };
+    final startWatching = current != null &&
+        next > current.listStatus.progress &&
+        current.listStatus.status == AnimeListStatuses.planToWatch;
     state = prev.whenData(
       (items) => [
         for (final item in items)
           if (item.anime.id == id)
             AnimeListEntry(
               anime: item.anime,
-              listStatus: item.listStatus.copyWith(progress: next),
+              listStatus: item.listStatus.copyWith(
+                progress: next,
+                status: startWatching
+                    ? AnimeListStatuses.watching
+                    : item.listStatus.status,
+              ),
             )
           else
             item,
       ],
     );
     try {
-      await ref
-          .read(listRepositoryProvider)
-          .updateAnimeEntry(id, numWatchedEpisodes: next);
+      await ref.read(listRepositoryProvider).updateAnimeEntry(
+            id,
+            numWatchedEpisodes: next,
+            status: startWatching ? AnimeListStatuses.watching : null,
+          );
       return true;
     } catch (_) {
       state = prev;
@@ -453,24 +471,41 @@ class MyMangaList extends AsyncNotifier<List<MangaListEntry>> {
     return ref.watch(listRepositoryProvider).mangaList();
   }
 
+  /// Same as [MyAnimeList.stepProgress], plus the "Plan to Read" →
+  /// "Reading" flip on chapter increments.
   Future<bool> stepProgress(int id, int next) async {
     final prev = state;
+    final current = switch (prev) {
+      AsyncData(:final value) =>
+        value.where((e) => e.manga.id == id).firstOrNull,
+      _ => null,
+    };
+    final startReading = current != null &&
+        next > current.listStatus.progress &&
+        current.listStatus.status == MangaListStatuses.planToRead;
     state = prev.whenData(
       (items) => [
         for (final item in items)
           if (item.manga.id == id)
             MangaListEntry(
               manga: item.manga,
-              listStatus: item.listStatus.copyWith(progress: next),
+              listStatus: item.listStatus.copyWith(
+                progress: next,
+                status: startReading
+                    ? MangaListStatuses.reading
+                    : item.listStatus.status,
+              ),
             )
           else
             item,
       ],
     );
     try {
-      await ref
-          .read(listRepositoryProvider)
-          .updateMangaEntry(id, numReadChapters: next);
+      await ref.read(listRepositoryProvider).updateMangaEntry(
+            id,
+            numReadChapters: next,
+            status: startReading ? MangaListStatuses.reading : null,
+          );
       return true;
     } catch (_) {
       state = prev;
