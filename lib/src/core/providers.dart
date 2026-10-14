@@ -369,6 +369,12 @@ final animeStatisticsProvider =
   return ref.watch(tenraiRepositoryProvider).animeStatistics(id);
 });
 
+/// Anime/manga detail by MAL id (manga reuses the anime layout).
+/// Carries `my_list_status`, so the detail pill reads from here.
+final animeDetailProvider = FutureProvider.family<AnimeDetail, int>((ref, id) {
+  return ref.watch(mediaRepositoryProvider).animeDetail(id);
+});
+
 /// Characters for a manga (Jikan).
 final mangaCharactersProvider =
     FutureProvider.family<List<AnimeCharacter>, int>((ref, id) {
@@ -453,6 +459,9 @@ class MyAnimeList extends AsyncNotifier<List<AnimeListEntry>> {
             numWatchedEpisodes: next,
             status: startWatching ? AnimeListStatuses.watching : null,
           );
+      // The detail page caches my_list_status for its pill — drop it so the
+      // pill is fresh when the entry is opened from My List.
+      ref.invalidate(animeDetailProvider(id));
       return true;
     } catch (_) {
       state = prev;
@@ -506,6 +515,9 @@ class MyMangaList extends AsyncNotifier<List<MangaListEntry>> {
             numReadChapters: next,
             status: startReading ? MangaListStatuses.reading : null,
           );
+      // The detail page caches my_list_status for its pill — drop it so the
+      // pill is fresh when the entry is opened from My List.
+      ref.invalidate(animeDetailProvider(id));
       return true;
     } catch (_) {
       state = prev;

@@ -36,7 +36,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
   Widget build(BuildContext context) {
     // v1 focuses on anime details; manga reuses the anime layout
     // with manga-specific fields where available.
-    final detail = ref.watch(_animeDetailProvider(widget.id));
+    final detail = ref.watch(animeDetailProvider(widget.id));
     return detail.when(
       data: (d) => _DetailBody(detail: d, kind: widget.kind),
       loading: () => Scaffold(
@@ -55,7 +55,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: () =>
-                    ref.invalidate(_animeDetailProvider(widget.id)),
+                    ref.invalidate(animeDetailProvider(widget.id)),
                 child: const Text('Retry'),
               ),
             ],
@@ -65,10 +65,6 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
     );
   }
 }
-
-final _animeDetailProvider = FutureProvider.family<AnimeDetail, int>((ref, id) {
-  return ref.watch(mediaRepositoryProvider).animeDetail(id);
-});
 
 /// Dominant poster color used to tint the detail banner scrim. Null when
 /// the poster is missing or the palette can't be extracted. Keyed by image
@@ -180,14 +176,14 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
         body: RefreshIndicator(
           onRefresh: () async {
             final id = widget.detail.id;
-            ref.invalidate(_animeDetailProvider(id));
+            ref.invalidate(animeDetailProvider(id));
             ref.invalidate(animeCharactersProvider(id));
             ref.invalidate(animePicturesProvider((id: id, isAnime: _isAnime)));
             ref.invalidate(animeStatisticsProvider(id));
             ref.invalidate(_reviewsProvider(id));
             if (_isAnime) ref.invalidate(animeStaffProvider(id));
             try {
-              await ref.read(_animeDetailProvider(id).future);
+              await ref.read(animeDetailProvider(id).future);
             } catch (_) {}
           },
           child: NestedScrollView(
@@ -281,7 +277,7 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
       total: widget.detail.numEpisodes,
       isNew: widget.detail.myListStatus == null,
       // Refresh the header pill (and everything else) right after saving.
-      onSaved: () => ref.invalidate(_animeDetailProvider(widget.detail.id)),
+      onSaved: () => ref.invalidate(animeDetailProvider(widget.detail.id)),
     );
   }
 

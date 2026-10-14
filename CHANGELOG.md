@@ -3,6 +3,7 @@
 All notable changes to MALClient (Flutter rewrite) are documented here.
 
 ## [1.2.9] - 2026-10-14
+- My List stepper now also refreshes the detail page cache, so the status pill is never stale when opening an entry
 
 - Stepping an episode/chapter up on a "Plan to Watch" / "Plan to Read" entry now flips it to "Watching" / "Reading" automatically
 
