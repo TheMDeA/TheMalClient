@@ -331,6 +331,107 @@ class DateAutoSetNotifier extends Notifier<DateAutoSet> {
 
 // ---------- feature data ----------
 
+/// Default tabs for the My List screen (Settings → List Preferences).
+/// A null default means "last opened".
+class ListTabDefaults {
+  /// 'anime' | 'manga' | null (last opened section).
+  final String? kind;
+
+  /// AnimeListStatuses value, 'all', or null (last opened chip).
+  final String? animeStatus;
+
+  /// MangaListStatuses value, 'all', or null (last opened chip).
+  final String? mangaStatus;
+
+  const ListTabDefaults({
+    this.kind,
+    this.animeStatus,
+    this.mangaStatus,
+  });
+}
+
+final listTabDefaultsProvider =
+    NotifierProvider<ListTabDefaultsNotifier, ListTabDefaults>(
+        ListTabDefaultsNotifier.new);
+
+class ListTabDefaultsNotifier extends Notifier<ListTabDefaults> {
+  static const _p = 'list_tab_';
+
+  @override
+  ListTabDefaults build() {
+    final prefs = ref.watch(sharedPrefsProvider);
+    return ListTabDefaults(
+      kind: prefs.getString('${_p}default_kind'),
+      animeStatus: prefs.getString('${_p}default_anime'),
+      mangaStatus: prefs.getString('${_p}default_manga'),
+    );
+  }
+
+  Future<void> _save(String key, String? value, ListTabDefaults next) async {
+    state = next;
+    final prefs = ref.read(sharedPrefsProvider);
+    if (value == null) {
+      await prefs.remove('$_p$key');
+    } else {
+      await prefs.setString('$_p$key', value);
+    }
+  }
+
+  Future<void> setKind(String? v) => _save(
+        'default_kind',
+        v,
+        ListTabDefaults(
+          kind: v,
+          animeStatus: state.animeStatus,
+          mangaStatus: state.mangaStatus,
+        ),
+      );
+
+  Future<void> setAnimeStatus(String? v) => _save(
+        'default_anime',
+        v,
+        ListTabDefaults(
+          kind: state.kind,
+          animeStatus: v,
+          mangaStatus: state.mangaStatus,
+        ),
+      );
+
+  Future<void> setMangaStatus(String? v) => _save(
+        'default_manga',
+        v,
+        ListTabDefaults(
+          kind: state.kind,
+          animeStatus: state.animeStatus,
+          mangaStatus: v,
+        ),
+      );
+
+  /// Last-opened tracking: a "None" default falls back to these.
+  String lastKind() =>
+      ref.read(sharedPrefsProvider).getString('${_p}last_kind') ?? 'anime';
+
+  String? lastAnimeStatus() =>
+      ref.read(sharedPrefsProvider).getString('${_p}last_anime');
+
+  String? lastMangaStatus() =>
+      ref.read(sharedPrefsProvider).getString('${_p}last_manga');
+
+  Future<void> recordKind(ListKind kind) => ref
+      .read(sharedPrefsProvider)
+      .setString('${_p}last_kind', kind.name);
+
+  Future<void> recordStatus(ListKind kind, String? status) async {
+    final prefs = ref.read(sharedPrefsProvider);
+    final key = kind == ListKind.anime ? '${_p}last_anime' : '${_p}last_manga';
+    if (status == null) {
+      await prefs.remove(key);
+    } else {
+      await prefs.setString(key, status);
+    }
+  }
+}
+
 final seasonalAnimeProvider = FutureProvider<List<AnimeSummary>>((ref) {
   return ref.watch(mediaRepositoryProvider).seasonalAnime();
 });

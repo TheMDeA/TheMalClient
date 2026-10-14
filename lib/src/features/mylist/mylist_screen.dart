@@ -39,9 +39,30 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
   @override
   void initState() {
     super.initState();
+    final defaults = ref.read(listTabDefaultsProvider);
+    final lastKind = ref.read(listTabDefaultsProvider.notifier).lastKind();
+    _kind = (defaults.kind ?? lastKind) == 'manga'
+        ? ListKind.manga
+        : ListKind.anime;
+    _status = _defaultStatus(_kind, defaults);
     _ticker = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) setState(() {});
     });
+  }
+
+  /// Resolves the status chip for [kind]: the configured default tab,
+  /// 'all' → the All chip, null ("None") → the last opened chip.
+  String? _defaultStatus(ListKind kind, ListTabDefaults defaults) {
+    final notifier = ref.read(listTabDefaultsProvider.notifier);
+    final def =
+        kind == ListKind.anime ? defaults.animeStatus : defaults.mangaStatus;
+    if (def == null) {
+      return kind == ListKind.anime
+          ? notifier.lastAnimeStatus()
+          : notifier.lastMangaStatus();
+    }
+    if (def == 'all') return null;
+    return def;
   }
 
   @override
@@ -278,10 +299,15 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
                 selected: {_kind},
                 onSelectionChanged: (s) {
                   HapticFeedback.selectionClick();
+                  final kind = s.first;
+                  final defaults = ref.read(listTabDefaultsProvider);
                   setState(() {
-                    _kind = s.first;
-                    _status = null;
+                    _kind = kind;
+                    _status = _defaultStatus(kind, defaults);
                   });
+                  ref
+                      .read(listTabDefaultsProvider.notifier)
+                      .recordKind(kind);
                 },
               ),
             ),
@@ -301,6 +327,9 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
                         onSelected: (_) {
                           HapticFeedback.selectionClick();
                           setState(() => _status = null);
+                          ref
+                              .read(listTabDefaultsProvider.notifier)
+                              .recordStatus(_kind, null);
                         },
                       ),
                     );
@@ -313,6 +342,9 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
                       onSelected: (_) {
                         HapticFeedback.selectionClick();
                         setState(() => _status = _status == s ? null : s);
+                        ref
+                            .read(listTabDefaultsProvider.notifier)
+                            .recordStatus(_kind, _status);
                       },
                     ),
                   );

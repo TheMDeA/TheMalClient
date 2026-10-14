@@ -3,6 +3,7 @@
 All notable changes to MALClient (Flutter rewrite) are documented here.
 
 ## [1.3.0] - 2026-10-14
+- List Preferences: choose default tabs for the My List screen (anime/manga section, anime status, manga status); 'None' falls back to the last opened tab
 - Fixed the detail-page airing countdown not showing aired/next episode info when MAL reports an unknown episode total
 - The stepper's status flips now also apply the date auto-setters (start date on Watching, finish date on Completed)
 - The stepper now asks for confirmation before auto-completing an entry at its final episode/chapter
