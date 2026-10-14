@@ -1,4 +1,5 @@
 # MyAL v1.2.9
+- Fixed pull-to-refresh on the detail page (it never triggered: NestedScrollView only overscrolls its inner tab lists, which the default indicator predicate ignores)
 - My List stepper now also refreshes the detail page cache, so the status pill is never stale when opening an entry
 
 - Stepping an episode/chapter up on a "Plan to Watch" / "Plan to Read" entry now flips it to "Watching" / "Reading" automatically

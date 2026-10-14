@@ -174,6 +174,16 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
         body: RefreshIndicator(
+          // NestedScrollView funnels every drag through its coordinator, which
+          // only ever overscrolls the inner (tab) scrollables — the outer is
+          // only clamped and can never overscroll. The default depth-0
+          // predicate therefore never sees the overscroll, so the pull never
+          // fired. Listen to the nested vertical scrollables instead (they
+          // arrive at depth 2, through the PageView's and outer's viewports).
+          notificationPredicate: (notification) =>
+              notification.depth != 0 &&
+              (notification.metrics.axisDirection == AxisDirection.down ||
+                  notification.metrics.axisDirection == AxisDirection.up),
           onRefresh: () async {
             final id = widget.detail.id;
             ref.invalidate(animeDetailProvider(id));
@@ -186,7 +196,17 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
               await ref.read(animeDetailProvider(id).future);
             } catch (_) {}
           },
-          child: NestedScrollView(
+          // The nested overscroll only happens on the refresh pull: hide the
+          // inner top-edge glow so only the refresh spinner shows. (Depth 1
+          // is the tab PageView itself — its swipe glow is left alone.)
+          child: NotificationListener<OverscrollIndicatorNotification>(
+            onNotification: (notification) {
+              if (notification.depth > 1 && notification.leading) {
+                notification.disallowIndicator();
+              }
+              return false;
+            },
+            child: NestedScrollView(
             controller: _outerScroll,
             headerSliverBuilder: (context, innerScrolled) => [
               // Auto-sizes to its content: no hardcoded height, so the
@@ -233,6 +253,7 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
               ],
             ),
           ),
+        ),
         ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () => _openEditSheet(context),
