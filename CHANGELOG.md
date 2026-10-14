@@ -11,13 +11,11 @@ All notable changes to MALClient (Flutter rewrite) are documented here.
 - Reaching the final episode/chapter now flips the entry to Completed automatically; progress can no longer exceed the known total (also capped in the edit sheet)
 - Fixed pull-to-refresh on the detail page (it never triggered: NestedScrollView only overscrolls its inner tab lists, which the default indicator predicate ignores)
 - My List stepper now also refreshes the detail page cache, so the status pill is never stale when opening an entry
-
 - Stepping an episode/chapter up on a "Plan to Watch" / "Plan to Read" entry now flips it to "Watching" / "Reading" automatically
 
 ## [1.2.8] - 2026-10-14
 - Removed the countdown bounce animation in My List (the airing countdown now updates silently)
 - Material You dynamic colors: optional system wallpaper colors (Android 12+) in Theme Settings, replacing the accent presets when on
-
 - Performance batch: News screen loads ~5x faster (parallel requests instead of 12 sequential with delays)
 - My List no longer runs a timer per row — one shared ticker, countdowns now minute-precision
 - Search waits until you stop typing (400ms debounce) and only queries the visible Anime/Manga tab
