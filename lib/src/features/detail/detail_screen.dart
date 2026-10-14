@@ -15,6 +15,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:malclient/src/core/providers.dart';
 import 'package:malclient/src/core/theme/app_theme.dart';
 import 'package:malclient/src/data/models/media.dart';
+import 'package:malclient/src/features/detail/title_detail.dart';
 import 'package:malclient/src/features/mylist/mylist_screen.dart';
 import 'package:malclient/src/widgets/poster_card.dart';
 import 'package:malclient/src/widgets/entrance.dart';
@@ -34,9 +35,8 @@ class DetailScreen extends ConsumerStatefulWidget {
 class _DetailScreenState extends ConsumerState<DetailScreen> {
   @override
   Widget build(BuildContext context) {
-    // v1 focuses on anime details; manga reuses the anime layout
-    // with manga-specific fields where available.
-    final detail = ref.watch(animeDetailProvider(widget.id));
+    final detail =
+        ref.watch(titleDetailProvider((id: widget.id, kind: widget.kind)));
     return detail.when(
       data: (d) => _DetailBody(detail: d, kind: widget.kind),
       loading: () => Scaffold(
@@ -54,8 +54,8 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
               Text('Could not load details.\n$e', textAlign: TextAlign.center),
               const SizedBox(height: 12),
               FilledButton(
-                onPressed: () =>
-                    ref.invalidate(animeDetailProvider(widget.id)),
+                onPressed: () => ref.invalidate(
+                    titleDetailProvider((id: widget.id, kind: widget.kind))),
                 child: const Text('Retry'),
               ),
             ],
@@ -129,7 +129,7 @@ Future<Color?> _dominantColorOf(String path) async {
 }
 
 class _DetailBody extends ConsumerStatefulWidget {
-  final AnimeDetail detail;
+  final TitleDetail detail;
   final ListKind kind;
 
   const _DetailBody({required this.detail, required this.kind});
@@ -186,14 +186,23 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
                   notification.metrics.axisDirection == AxisDirection.up),
           onRefresh: () async {
             final id = widget.detail.id;
-            ref.invalidate(animeDetailProvider(id));
-            ref.invalidate(animeCharactersProvider(id));
+            final args = (id: id, kind: widget.kind);
+            ref.invalidate(titleDetailProvider(args));
             ref.invalidate(animePicturesProvider((id: id, isAnime: _isAnime)));
-            ref.invalidate(animeStatisticsProvider(id));
-            ref.invalidate(_reviewsProvider(id));
-            if (_isAnime) ref.invalidate(animeStaffProvider(id));
+            if (_isAnime) {
+              ref.invalidate(animeDetailProvider(id));
+              ref.invalidate(animeCharactersProvider(id));
+              ref.invalidate(animeStatisticsProvider(id));
+              ref.invalidate(_reviewsProvider(id));
+              ref.invalidate(animeStaffProvider(id));
+            } else {
+              ref.invalidate(mangaDetailProvider(id));
+              ref.invalidate(mangaCharactersProvider(id));
+              ref.invalidate(mangaStatisticsProvider(id));
+              ref.invalidate(mangaReviewsProvider(id));
+            }
             try {
-              await ref.read(animeDetailProvider(id).future);
+              await ref.read(titleDetailProvider(args).future);
             } catch (_) {}
           },
           // The nested overscroll only happens on the refresh pull: hide the
@@ -226,7 +235,9 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
                         onSearchTap: () => context.push('/discover'),
                         onMoreTap: () => _showMoreSheet(context, d, _isAnime),
                       ),
-                      if (d.isAiring && d.broadcastDay != null)
+                      if (_isAnime &&
+                          d.status == 'currently_airing' &&
+                          d.broadcastDay != null)
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                           child: _CountdownChip(detail: d),
@@ -243,12 +254,12 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
             body: TabBarView(
               controller: _tabs,
               children: [
-                _SynopsisTab(detail: d),
+                _SynopsisTab(detail: d, isAnime: _isAnime),
                 _CharactersTab(id: d.id, isAnime: _isAnime),
                 if (_isAnime) _StaffTab(animeId: d.id),
                 _MediaTab(detail: d, isAnime: _isAnime),
                 _RelatedTab(detail: d),
-                _ReviewsTab(animeId: d.id),
+                _ReviewsTab(id: d.id, isAnime: _isAnime),
                 _MoreInfoTab(detail: d, isAnime: _isAnime),
               ],
             ),
@@ -277,7 +288,7 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
     final inProgress = mls.status == AnimeListStatuses.watching ||
         mls.status == MangaListStatuses.reading;
     if (!inProgress) return label;
-    final total = _isAnime ? widget.detail.numEpisodes : null;
+    final total = widget.detail.totalCount;
     final progress = total != null && total > 0
         ? '${mls.progress}/$total'
         : '${mls.progress}';
@@ -285,9 +296,11 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
   }
 
   void _openEditSheet(BuildContext context) {
-    final mls =
-        widget.detail.myListStatus ??
-        const MyListStatus(status: AnimeListStatuses.planToWatch);
+    final mls = widget.detail.myListStatus ??
+        MyListStatus(
+            status: _isAnime
+                ? AnimeListStatuses.planToWatch
+                : MangaListStatuses.planToRead);
     showEditEntrySheet(
       context,
       ref,
@@ -295,14 +308,15 @@ class _DetailBodyState extends ConsumerState<_DetailBody>
       id: widget.detail.id,
       title: widget.detail.title,
       status: mls,
-      total: widget.detail.numEpisodes,
+      total: widget.detail.totalCount,
       isNew: widget.detail.myListStatus == null,
       // Refresh the header pill (and everything else) right after saving.
-      onSaved: () => ref.invalidate(animeDetailProvider(widget.detail.id)),
+      onSaved: () => ref.invalidate(
+          titleDetailProvider((id: widget.detail.id, kind: widget.kind))),
     );
   }
 
-  void _showMoreSheet(BuildContext context, AnimeDetail d, bool isAnime) {
+  void _showMoreSheet(BuildContext context, TitleDetail d, bool isAnime) {
     final malPath = isAnime ? 'anime' : 'manga';
     showModalBottomSheet(
       context: context,
@@ -416,7 +430,7 @@ class _TabBarHeaderDelegate extends SliverPersistentHeaderDelegate {
 /// overlaid navigation/actions, title and language switcher — then the
 /// stats row and info grid below.
 class _DetailHeader extends ConsumerWidget {
-  final AnimeDetail detail;
+  final TitleDetail detail;
   final String kind;
   final int titleLang;
   final ValueChanged<int> onTitleLangChanged;
@@ -436,7 +450,7 @@ class _DetailHeader extends ConsumerWidget {
 
   bool get _isAnime => kind == 'anime';
 
-  String _title(AnimeDetail d) => switch (titleLang) {
+  String _title(TitleDetail d) => switch (titleLang) {
         1 => d.titleEn ?? d.title,
         2 => d.titleJa ?? d.title,
         _ => d.title,
@@ -570,7 +584,7 @@ class _DetailHeader extends ConsumerWidget {
               _stat(
                 context,
                 _isAnime ? 'Episodes' : 'Chapters',
-                d.numEpisodes?.toString() ?? '—',
+                d.totalCount?.toString() ?? '—',
               ),
             ],
           ),
@@ -585,7 +599,9 @@ class _DetailHeader extends ConsumerWidget {
                 children: [
                   Expanded(child: _infoRow(context, 'Format', _formatLine(d))),
                   const SizedBox(width: 12),
-                  Expanded(child: _infoRow(context, 'Aired', _airedLine(d))),
+                  Expanded(
+                      child: _infoRow(context, _isAnime ? 'Aired' : 'Published',
+                          _airedLine(d))),
                 ],
               ),
               const SizedBox(height: 12),
@@ -593,7 +609,14 @@ class _DetailHeader extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                      child: _infoRow(context, 'Studios', d.studio ?? '—')),
+                      child: _infoRow(
+                          context,
+                          _isAnime ? 'Studios' : 'Authors',
+                          _isAnime
+                              ? d.studio ?? '—'
+                              : (d.authors.isNotEmpty
+                                  ? d.authors.join(', ')
+                                  : '—'))),
                   const SizedBox(width: 12),
                   Expanded(
                     child: _infoRow(
@@ -612,7 +635,7 @@ class _DetailHeader extends ConsumerWidget {
     );
   }
 
-  Widget _bannerImage(BuildContext context, AnimeDetail d) {
+  Widget _bannerImage(BuildContext context, TitleDetail d) {
     final url = d.imageUrl;
     Widget fallback() => Container(
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -739,26 +762,38 @@ class _DetailHeader extends ConsumerWidget {
     );
   }
 
-  String _formatLine(AnimeDetail d) {
+  String _formatLine(TitleDetail d) {
     final type = switch (d.mediaType) {
       'tv' => 'TV',
       'movie' => 'Movie',
       'ova' => 'OVA',
       'ona' => 'ONA',
       'special' => 'Special',
+      'manga' => 'Manga',
+      'novel' => 'Novel',
+      'light_novel' => 'Light Novel',
+      'one_shot' => 'One Shot',
+      'doujinshi' => 'Doujinshi',
+      'manhwa' => 'Manhwa',
+      'manhua' => 'Manhua',
       _ => d.mediaType ?? '',
     };
-    final n = d.numEpisodes;
-    return n != null ? '$type ($n eps)' : type;
+    final n = d.totalCount;
+    final unit = d.isAnime ? 'eps' : 'chs';
+    return n != null ? '$type ($n $unit)' : type;
   }
 
-  String _airedLine(AnimeDetail d) {
-    if (d.seasonYear != null) {
-      final s = d.season ?? '';
-      final cap = s.isEmpty ? '' : s[0].toUpperCase() + s.substring(1);
-      return '$cap ${d.seasonYear}';
+  String _airedLine(TitleDetail d) {
+    if (d.isAnime) {
+      if (d.seasonYear != null) {
+        final s = d.season ?? '';
+        final cap = s.isEmpty ? '' : s[0].toUpperCase() + s.substring(1);
+        return '$cap ${d.seasonYear}';
+      }
+      final from = d.airedFrom;
+      return from != null && from.length >= 4 ? from.substring(0, 4) : '—';
     }
-    final from = d.airedFrom;
+    final from = d.publishedFrom;
     return from != null && from.length >= 4 ? from.substring(0, 4) : '—';
   }
 
@@ -772,7 +807,7 @@ class _DetailHeader extends ConsumerWidget {
 
 
 class _CountdownChip extends StatefulWidget {
-  final AnimeDetail detail;
+  final TitleDetail detail;
 
   const _CountdownChip({required this.detail});
 
@@ -835,7 +870,7 @@ class _CountdownChipState extends State<_CountdownChip> {
   }
 
   /// "Ep 2 aired • Ep 3 Fri 22:00 • in 3d 1h 14m"
-  String _buildLabel(AnimeDetail d) {
+  String _buildLabel(TitleDetail d) {
     final aired = _latestAiredEpisode(d);
     int? next;
     if (aired != null) {
@@ -872,7 +907,7 @@ class _CountdownChipState extends State<_CountdownChip> {
   }
 
   /// "Fri 22:00" in the phone's local timezone (broadcast is JST).
-  String? _shortAirLabel(AnimeDetail d) {
+  String? _shortAirLabel(TitleDetail d) {
     final next = _nextAirDate(d);
     if (next == null) return null;
     final day = switch (next.weekday) {
@@ -891,7 +926,7 @@ class _CountdownChipState extends State<_CountdownChip> {
   }
 
   /// Estimates the latest aired episode from start date + weekly broadcast.
-  int? _latestAiredEpisode(AnimeDetail d) {
+  int? _latestAiredEpisode(TitleDetail d) {
     final start = d.airedFrom;
     if (start == null || start.length < 10) return null;
     try {
@@ -909,7 +944,7 @@ class _CountdownChipState extends State<_CountdownChip> {
   }
 
   /// "in 2d 4h 12m" until the next episode (broadcast is JST).
-  String? _countdown(AnimeDetail d) {
+  String? _countdown(TitleDetail d) {
     final next = _nextAirDate(d);
     if (next == null) return null;
     final diff = next.difference(DateTime.now());
@@ -923,7 +958,7 @@ class _CountdownChipState extends State<_CountdownChip> {
   }
 
   /// Next broadcast datetime in local time. Broadcast times are JST (UTC+9).
-  DateTime? _nextAirDate(AnimeDetail d) {
+  DateTime? _nextAirDate(TitleDetail d) {
     final day = d.broadcastDay;
     final time = d.broadcastTime;
     if (day == null || time == null) return null;
@@ -963,9 +998,10 @@ class _CountdownChipState extends State<_CountdownChip> {
 }
 
 class _SynopsisTab extends StatelessWidget {
-  final AnimeDetail detail;
+  final TitleDetail detail;
+  final bool isAnime;
 
-  const _SynopsisTab({required this.detail});
+  const _SynopsisTab({required this.detail, required this.isAnime});
 
   @override
   Widget build(BuildContext context) {
@@ -989,7 +1025,7 @@ class _SynopsisTab extends StatelessWidget {
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.5),
         ),
         const SizedBox(height: 16),
-        _StatisticsSection(animeId: detail.id),
+        _StatisticsSection(id: detail.id, isAnime: isAnime),
       ],
     );
   }
@@ -998,13 +1034,15 @@ class _SynopsisTab extends StatelessWidget {
 /// Aggregate user statistics: status distribution + score distribution.
 /// Source: Jikan `/anime/{id}/statistics`.
 class _StatisticsSection extends ConsumerWidget {
-  final int animeId;
+  final int id;
+  final bool isAnime;
 
-  const _StatisticsSection({required this.animeId});
+  const _StatisticsSection({required this.id, required this.isAnime});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final stats = ref.watch(animeStatisticsProvider(animeId));
+    final stats = ref.watch(
+        isAnime ? animeStatisticsProvider(id) : mangaStatisticsProvider(id));
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
@@ -1024,7 +1062,8 @@ class _StatisticsSection extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 12),
-            _statBar(context, 'Watching', s.watching, s.total, scheme.primary),
+            _statBar(context, isAnime ? 'Watching' : 'Reading', s.watching,
+                s.total, scheme.primary),
             _statBar(
                 context,
                 'Completed',
@@ -1040,7 +1079,7 @@ class _StatisticsSection extends ConsumerWidget {
             _statBar(context, 'Dropped', s.dropped, s.total, scheme.error),
             _statBar(
               context,
-              'Plan to Watch',
+              isAnime ? 'Plan to Watch' : 'Plan to Read',
               s.planToWatch,
               s.total,
               scheme.tertiary,
@@ -1397,7 +1436,7 @@ class _StaffTab extends ConsumerWidget {
 }
 
 class _MediaTab extends ConsumerWidget {
-  final AnimeDetail detail;
+  final TitleDetail detail;
   final bool isAnime;
 
   const _MediaTab({required this.detail, required this.isAnime});
@@ -1564,22 +1603,18 @@ class _PictureViewerState extends State<_PictureViewer> {
 }
 
 class _RelatedTab extends StatelessWidget {
-  final AnimeDetail detail;
+  final TitleDetail detail;
 
   const _RelatedTab({required this.detail});
 
   @override
   Widget build(BuildContext context) {
-    // Normalize to (anime, relation label) pairs. Recommendations
-    // have no relation type.
-    final List<({AnimeSummary anime, String? label})> items;
+    // Related entries carry a relation label; recommendations don't.
+    final List<RelatedTitle> items;
     if (detail.related.isNotEmpty) {
-      items = [
-        for (final r in detail.related)
-          (anime: r.anime, label: r.relationLabel),
-      ];
+      items = detail.related;
     } else {
-      items = [for (final a in detail.recommendations) (anime: a, label: null)];
+      items = detail.recommendations;
     }
     if (items.isEmpty) {
       return const Center(child: Text('No related titles.'));
@@ -1594,8 +1629,8 @@ class _RelatedTab extends StatelessWidget {
       ),
       itemCount: items.length,
       itemBuilder: (_, i) {
-        final a = items[i].anime;
-        final label = items[i].label;
+        final a = items[i];
+        final label = a.label;
         return Stack(
           children: [
             PosterCard(
@@ -1603,7 +1638,8 @@ class _RelatedTab extends StatelessWidget {
               title: a.title,
               mean: a.mean,
               width: double.infinity,
-              onTap: () => context.push('/detail/anime/${a.id}'),
+              onTap: () => context.push(
+                  '/detail/${a.kind == ListKind.anime ? 'anime' : 'manga'}/${a.id}'),
             ),
             if (label != null)
               Positioned(
@@ -1636,13 +1672,15 @@ class _RelatedTab extends StatelessWidget {
 }
 
 class _ReviewsTab extends ConsumerWidget {
-  final int animeId;
+  final int id;
+  final bool isAnime;
 
-  const _ReviewsTab({required this.animeId});
+  const _ReviewsTab({required this.id, required this.isAnime});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final reviews = ref.watch(_reviewsProvider(animeId));
+    final reviews =
+        ref.watch(isAnime ? _reviewsProvider(id) : mangaReviewsProvider(id));
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     return reviews.when(
@@ -1742,7 +1780,7 @@ final _reviewsProvider = FutureProvider.family<List<Review>, int>((ref, id) {
 
 /// More Info tab: card-based detailed metadata like the classic app.
 class _MoreInfoTab extends StatelessWidget {
-  final AnimeDetail detail;
+  final TitleDetail detail;
   final bool isAnime;
 
   const _MoreInfoTab({required this.detail, required this.isAnime});
@@ -1829,8 +1867,8 @@ class _MoreInfoTab extends StatelessWidget {
       );
     }
 
-    final aired = _airedRange(d);
-    final broadcast = _broadcastLocal(d);
+    final aired = isAnime ? _airedRange(d) : _publishedRange(d);
+    final broadcast = isAnime ? _broadcastLocal(d) : null;
     final duration = d.avgEpisodeDuration != null
         ? '${(d.avgEpisodeDuration! / 60).round()}mins'
         : null;
@@ -1847,23 +1885,32 @@ class _MoreInfoTab extends StatelessWidget {
           children: [
             card('Media', _mediaType(d.mediaType) ?? '—'),
             const SizedBox(width: 8),
-            card('Episodes', '${d.numEpisodes ?? '—'}'),
-            const SizedBox(width: 8),
-            card('Status', _prettyStatus(d.status), flex: 2),
-            const SizedBox(width: 8),
-            card('Premiered', _premiered(d), flex: 2),
+            if (isAnime) ...[
+              card('Episodes', '${d.numEpisodes ?? '—'}'),
+              const SizedBox(width: 8),
+              card('Status', _prettyStatus(d.status), flex: 2),
+              const SizedBox(width: 8),
+              card('Premiered', _premiered(d), flex: 2),
+            ] else ...[
+              card('Chapters', '${d.numChapters ?? '—'}'),
+              const SizedBox(width: 8),
+              card('Volumes', '${d.numVolumes ?? '—'}'),
+              const SizedBox(width: 8),
+              card('Status', _prettyStatus(d.status), flex: 2),
+            ],
           ],
         ),
         const SizedBox(height: 8),
         Row(
           children: [
-            if (aired != null) card('Aired', aired, flex: 3),
+            if (aired != null) card(isAnime ? 'Aired' : 'Published', aired, flex: 3),
             if (aired != null) const SizedBox(width: 8),
-            card(
-              'Source',
-              d.source?.isNotEmpty == true ? _cap(d.source) : '—',
-              flex: 2,
-            ),
+            if (isAnime)
+              card(
+                'Source',
+                d.source?.isNotEmpty == true ? _cap(d.source) : '—',
+                flex: 2,
+              ),
           ],
         ),
         const SizedBox(height: 8),
@@ -1888,8 +1935,10 @@ class _MoreInfoTab extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (d.studio != null)
+            if (isAnime && d.studio != null)
               Expanded(child: chipSection('Studios', [d.studio!])),
+            if (!isAnime && d.authors.isNotEmpty)
+              Expanded(child: chipSection('Authors', d.authors)),
             Expanded(child: chipSection('Genres', d.genres)),
           ],
         ),
@@ -1905,6 +1954,13 @@ class _MoreInfoTab extends StatelessWidget {
     'special' => 'Special',
     'ona' => 'ONA',
     'music' => 'Music',
+    'manga' => 'Manga',
+    'novel' => 'Novel',
+    'light_novel' => 'Light Novel',
+    'one_shot' => 'One Shot',
+    'doujinshi' => 'Doujinshi',
+    'manhwa' => 'Manhwa',
+    'manhua' => 'Manhua',
     _ => t == null ? null : _cap(t),
   };
 
@@ -1915,10 +1971,15 @@ class _MoreInfoTab extends StatelessWidget {
     'currently_airing' => 'Currently airing',
     'finished_airing' => 'Finished airing',
     'not_yet_aired' => 'Not yet aired',
+    'currently_publishing' => 'Currently publishing',
+    'finished' => 'Finished',
+    'not_yet_published' => 'Not yet published',
+    'on_hiatus' => 'On hiatus',
+    'discontinued' => 'Discontinued',
     _ => s ?? '—',
   };
 
-  String _premiered(AnimeDetail d) {
+  String _premiered(TitleDetail d) {
     if (d.seasonYear != null) {
       return '${_cap(d.season)} ${d.seasonYear}';
     }
@@ -1926,15 +1987,23 @@ class _MoreInfoTab extends StatelessWidget {
   }
 
   /// "2026-04-01 to 2026-06-24"
-  String? _airedRange(AnimeDetail d) {
+  String? _airedRange(TitleDetail d) {
     final from = d.airedFrom;
     if (from == null) return null;
     final to = d.airedTo;
     return to != null ? '$from to $to' : from;
   }
 
+  /// "2026-04-01 to 2026-06-24"
+  String? _publishedRange(TitleDetail d) {
+    final from = d.publishedFrom;
+    if (from == null) return null;
+    final to = d.publishedTo;
+    return to != null ? '$from to $to' : from;
+  }
+
   /// Broadcast time converted to local timezone, e.g. "8:30 PM Wed (WITA)".
-  String? _broadcastLocal(AnimeDetail d) {
+  String? _broadcastLocal(TitleDetail d) {
     final day = d.broadcastDay;
     final time = d.broadcastTime;
     if (day == null || time == null) return null;
@@ -1979,7 +2048,7 @@ class _MoreInfoTab extends StatelessWidget {
   };
 
   /// All alternative titles combined.
-  String _allTitles(AnimeDetail d) {
+  String _allTitles(TitleDetail d) {
     final titles = <String>[d.title];
     if (d.titleEn != null && d.titleEn != d.title) {
       titles.add(d.titleEn!);

@@ -8,6 +8,7 @@ import 'package:malclient/src/data/repositories/auth_repository.dart';
 import 'package:malclient/src/data/repositories/tenrai_repository.dart';
 import 'package:malclient/src/data/repositories/list_repository.dart';
 import 'package:malclient/src/data/repositories/media_repository.dart';
+import 'package:malclient/src/features/detail/title_detail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ---------- platform services ----------
@@ -369,10 +370,43 @@ final animeStatisticsProvider =
   return ref.watch(tenraiRepositoryProvider).animeStatistics(id);
 });
 
+/// Aggregate statistics for a manga (Jikan).
+final mangaStatisticsProvider =
+    FutureProvider.family<AnimeStatistics?, int>((ref, id) {
+  return ref.watch(tenraiRepositoryProvider).mangaStatistics(id);
+});
+
+/// Reviews for a manga (Tenrai).
+final mangaReviewsProvider =
+    FutureProvider.family<List<Review>, int>((ref, id) {
+  return ref.watch(tenraiRepositoryProvider).mangaReviews(id);
+});
+
 /// Anime/manga detail by MAL id (manga reuses the anime layout).
 /// Carries `my_list_status`, so the detail pill reads from here.
 final animeDetailProvider = FutureProvider.family<AnimeDetail, int>((ref, id) {
   return ref.watch(mediaRepositoryProvider).animeDetail(id);
+});
+
+/// Manga detail by MAL id. Carries `my_list_status` for the detail pill.
+final mangaDetailProvider = FutureProvider.family<MangaDetail, int>((ref, id) {
+  return ref.watch(mediaRepositoryProvider).mangaDetail(id);
+});
+
+/// Normalized title detail for the detail page, from either endpoint.
+final titleDetailProvider =
+    FutureProvider.family<TitleDetail, ({int id, ListKind kind})>((
+      ref,
+      args,
+    ) async {
+  if (args.kind == ListKind.anime) {
+    return TitleDetail.fromAnime(
+      await ref.watch(animeDetailProvider(args.id).future),
+    );
+  }
+  return TitleDetail.fromManga(
+    await ref.watch(mangaDetailProvider(args.id).future),
+  );
 });
 
 /// Characters for a manga (Jikan).
@@ -425,7 +459,8 @@ class MyAnimeList extends AsyncNotifier<List<AnimeListEntry>> {
   /// and rolls the cached list back if the request fails.
   ///
   /// Stepping an episode up while the entry is "Plan to Watch" also flips
-  /// the status to "Watching" in the same request.
+  /// the status to "Watching" in the same request. Reaching the final
+  /// episode flips it to "Completed" instead.
   Future<bool> stepProgress(int id, int next) async {
     final prev = state;
     final current = switch (prev) {
@@ -433,9 +468,22 @@ class MyAnimeList extends AsyncNotifier<List<AnimeListEntry>> {
         value.where((e) => e.anime.id == id).firstOrNull,
       _ => null,
     };
+    final total = current?.anime.numEpisodes;
+    final capped = (total != null && total > 0) ? next.clamp(0, total) : next;
+    final isIncrement = capped > (current?.listStatus.progress ?? 0);
     final startWatching = current != null &&
-        next > current.listStatus.progress &&
+        isIncrement &&
         current.listStatus.status == AnimeListStatuses.planToWatch;
+    // Reaching the final episode completes the entry — this takes
+    // precedence over the Plan to Watch flip.
+    final finishWatching = current != null &&
+        total != null &&
+        total > 0 &&
+        capped >= total &&
+        current.listStatus.status != AnimeListStatuses.completed;
+    final newStatus = finishWatching
+        ? AnimeListStatuses.completed
+        : (startWatching ? AnimeListStatuses.watching : null);
     state = prev.whenData(
       (items) => [
         for (final item in items)
@@ -443,10 +491,8 @@ class MyAnimeList extends AsyncNotifier<List<AnimeListEntry>> {
             AnimeListEntry(
               anime: item.anime,
               listStatus: item.listStatus.copyWith(
-                progress: next,
-                status: startWatching
-                    ? AnimeListStatuses.watching
-                    : item.listStatus.status,
+                progress: capped,
+                status: newStatus ?? item.listStatus.status,
               ),
             )
           else
@@ -456,8 +502,8 @@ class MyAnimeList extends AsyncNotifier<List<AnimeListEntry>> {
     try {
       await ref.read(listRepositoryProvider).updateAnimeEntry(
             id,
-            numWatchedEpisodes: next,
-            status: startWatching ? AnimeListStatuses.watching : null,
+            numWatchedEpisodes: capped,
+            status: newStatus,
           );
       // The detail page caches my_list_status for its pill — drop it so the
       // pill is fresh when the entry is opened from My List.
@@ -481,7 +527,8 @@ class MyMangaList extends AsyncNotifier<List<MangaListEntry>> {
   }
 
   /// Same as [MyAnimeList.stepProgress], plus the "Plan to Read" →
-  /// "Reading" flip on chapter increments.
+  /// "Reading" flip on chapter increments. Reaching the final chapter flips
+  /// the status to "Completed".
   Future<bool> stepProgress(int id, int next) async {
     final prev = state;
     final current = switch (prev) {
@@ -489,9 +536,22 @@ class MyMangaList extends AsyncNotifier<List<MangaListEntry>> {
         value.where((e) => e.manga.id == id).firstOrNull,
       _ => null,
     };
+    final total = current?.manga.numChapters;
+    final capped = (total != null && total > 0) ? next.clamp(0, total) : next;
+    final isIncrement = capped > (current?.listStatus.progress ?? 0);
     final startReading = current != null &&
-        next > current.listStatus.progress &&
+        isIncrement &&
         current.listStatus.status == MangaListStatuses.planToRead;
+    // Reaching the final chapter completes the entry — this takes
+    // precedence over the Plan to Read flip.
+    final finishReading = current != null &&
+        total != null &&
+        total > 0 &&
+        capped >= total &&
+        current.listStatus.status != MangaListStatuses.completed;
+    final newStatus = finishReading
+        ? MangaListStatuses.completed
+        : (startReading ? MangaListStatuses.reading : null);
     state = prev.whenData(
       (items) => [
         for (final item in items)
@@ -499,10 +559,8 @@ class MyMangaList extends AsyncNotifier<List<MangaListEntry>> {
             MangaListEntry(
               manga: item.manga,
               listStatus: item.listStatus.copyWith(
-                progress: next,
-                status: startReading
-                    ? MangaListStatuses.reading
-                    : item.listStatus.status,
+                progress: capped,
+                status: newStatus ?? item.listStatus.status,
               ),
             )
           else
@@ -512,12 +570,12 @@ class MyMangaList extends AsyncNotifier<List<MangaListEntry>> {
     try {
       await ref.read(listRepositoryProvider).updateMangaEntry(
             id,
-            numReadChapters: next,
-            status: startReading ? MangaListStatuses.reading : null,
+            numReadChapters: capped,
+            status: newStatus,
           );
       // The detail page caches my_list_status for its pill — drop it so the
       // pill is fresh when the entry is opened from My List.
-      ref.invalidate(animeDetailProvider(id));
+      ref.invalidate(mangaDetailProvider(id));
       return true;
     } catch (_) {
       state = prev;
