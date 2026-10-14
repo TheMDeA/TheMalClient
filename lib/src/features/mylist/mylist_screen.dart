@@ -470,6 +470,13 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
     final max = (t != null && t > 0) ? t : 1 << 30;
     final next = (e.listStatus.progress + delta).clamp(0, max);
     if (next == e.listStatus.progress) return; // At the boundary: nothing to do.
+    // A single tap shouldn't silently finish a title — confirm first.
+    if (t != null &&
+        t > 0 &&
+        next >= t &&
+        e.listStatus.status != AnimeListStatuses.completed) {
+      if (!await _confirmComplete(e.anime.title, 'episode')) return;
+    }
     setState(() => _steppingIds.add(id));
     final ok =
         await ref.read(myAnimeListProvider.notifier).stepProgress(id, next);
@@ -488,6 +495,13 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
     final max = (t != null && t > 0) ? t : 1 << 30;
     final next = (e.listStatus.progress + delta).clamp(0, max);
     if (next == e.listStatus.progress) return; // At the boundary: nothing to do.
+    // A single tap shouldn't silently finish a title — confirm first.
+    if (t != null &&
+        t > 0 &&
+        next >= t &&
+        e.listStatus.status != MangaListStatuses.completed) {
+      if (!await _confirmComplete(e.manga.title, 'chapter')) return;
+    }
     setState(() => _steppingIds.add(id));
     final ok =
         await ref.read(myMangaListProvider.notifier).stepProgress(id, next);
@@ -497,6 +511,32 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
       );
     }
     if (mounted) setState(() => _steppingIds.remove(id));
+  }
+
+  /// Asks before the stepper auto-completes an entry at its final
+  /// episode/chapter — a single tap shouldn't silently finish a title.
+  Future<bool> _confirmComplete(String title, String unit) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Mark as completed?'),
+        content: Text(
+          '"$title" reached its final $unit. Mark it as Completed?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Complete'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return false;
+    return ok == true;
   }
 }
 
