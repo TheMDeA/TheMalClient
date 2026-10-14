@@ -446,6 +446,36 @@ final staffAnimeProvider = FutureProvider.family<List<StaffAnime>, int>((ref, id
   return ref.watch(tenraiRepositoryProvider).staffAnime(id);
 });
 
+/// Date auto-setters applied when the stepper flips an entry's status,
+/// mirroring the edit sheet's save path: starting to watch/read fills the
+/// start date, completing fills the finish date — per Settings.
+({String? startDate, String? finishDate}) _autoFlipDates(
+  Ref ref, {
+  required String newStatus,
+  required String watchingStatus,
+  String? currentStart,
+  String? currentFinish,
+}) {
+  final autoSet = ref.read(dateAutoSetProvider);
+  final now = DateTime.now();
+  final today =
+      '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  String? autoDate(String? existing) {
+    if (autoSet.allowOverride && existing != null && existing.isNotEmpty) {
+      return existing;
+    }
+    return today;
+  }
+  return (
+    startDate: (newStatus == watchingStatus && autoSet.startOnWatching)
+        ? autoDate(currentStart)
+        : null,
+    finishDate: (newStatus == 'completed' && autoSet.endOnCompleted)
+        ? autoDate(currentFinish)
+        : null,
+  );
+}
+
 /// My anime list, fetched once (all statuses); the My List screen filters
 /// by status locally so chip taps never refetch from the server.
 /// Progress steppers patch entries optimistically via [stepProgress].
@@ -484,6 +514,19 @@ class MyAnimeList extends AsyncNotifier<List<AnimeListEntry>> {
     final newStatus = finishWatching
         ? AnimeListStatuses.completed
         : (startWatching ? AnimeListStatuses.watching : null);
+    // Fill start/finish dates per Settings when the status flips.
+    String? autoStart, autoFinish;
+    if (newStatus != null && current != null) {
+      final dates = _autoFlipDates(
+        ref,
+        newStatus: newStatus,
+        watchingStatus: AnimeListStatuses.watching,
+        currentStart: current.listStatus.startDate,
+        currentFinish: current.listStatus.finishDate,
+      );
+      autoStart = dates.startDate;
+      autoFinish = dates.finishDate;
+    }
     state = prev.whenData(
       (items) => [
         for (final item in items)
@@ -493,6 +536,8 @@ class MyAnimeList extends AsyncNotifier<List<AnimeListEntry>> {
               listStatus: item.listStatus.copyWith(
                 progress: capped,
                 status: newStatus ?? item.listStatus.status,
+                startDate: autoStart,
+                finishDate: autoFinish,
               ),
             )
           else
@@ -504,6 +549,8 @@ class MyAnimeList extends AsyncNotifier<List<AnimeListEntry>> {
             id,
             numWatchedEpisodes: capped,
             status: newStatus,
+            startDate: autoStart,
+            finishDate: autoFinish,
           );
       // The detail page caches my_list_status for its pill — drop it so the
       // pill is fresh when the entry is opened from My List.
@@ -552,6 +599,19 @@ class MyMangaList extends AsyncNotifier<List<MangaListEntry>> {
     final newStatus = finishReading
         ? MangaListStatuses.completed
         : (startReading ? MangaListStatuses.reading : null);
+    // Fill start/finish dates per Settings when the status flips.
+    String? autoStart, autoFinish;
+    if (newStatus != null && current != null) {
+      final dates = _autoFlipDates(
+        ref,
+        newStatus: newStatus,
+        watchingStatus: MangaListStatuses.reading,
+        currentStart: current.listStatus.startDate,
+        currentFinish: current.listStatus.finishDate,
+      );
+      autoStart = dates.startDate;
+      autoFinish = dates.finishDate;
+    }
     state = prev.whenData(
       (items) => [
         for (final item in items)
@@ -561,6 +621,8 @@ class MyMangaList extends AsyncNotifier<List<MangaListEntry>> {
               listStatus: item.listStatus.copyWith(
                 progress: capped,
                 status: newStatus ?? item.listStatus.status,
+                startDate: autoStart,
+                finishDate: autoFinish,
               ),
             )
           else
@@ -572,6 +634,8 @@ class MyMangaList extends AsyncNotifier<List<MangaListEntry>> {
             id,
             numReadChapters: capped,
             status: newStatus,
+            startDate: autoStart,
+            finishDate: autoFinish,
           );
       // The detail page caches my_list_status for its pill — drop it so the
       // pill is fresh when the entry is opened from My List.

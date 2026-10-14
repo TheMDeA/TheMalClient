@@ -2,7 +2,8 @@
 
 All notable changes to MALClient (Flutter rewrite) are documented here.
 
-## [1.2.9] - 2026-10-14
+## [1.3.0] - 2026-10-14
+- The stepper's status flips now also apply the date auto-setters (start date on Watching, finish date on Completed)
 - The stepper now asks for confirmation before auto-completing an entry at its final episode/chapter
 - Fixed manga detail pages (they fetched the anime endpoint and showed the wrong title): dedicated manga detail with authors, chapters/volumes, manga characters/reviews/statistics
 - Reaching the final episode/chapter now flips the entry to Completed automatically; progress can no longer exceed the known total (also capped in the edit sheet)
