@@ -484,6 +484,129 @@ class AnimeDetail extends AnimeSummary {
   }
 }
 
+/// Full manga details (MAL `/manga/{id}`).
+class MangaDetail extends MangaSummary {
+  final List<String> authors;
+  final List<MangaRelatedEntry> related;
+  final List<MangaSummary> recommendations;
+  final List<String> synonyms; // alternative_titles.synonyms
+  final String? titleEn; // alternative_titles.en
+  final String? titleJa; // alternative_titles.ja
+  final String? startDate; // YYYY-MM-DD
+  final String? endDate; // YYYY-MM-DD
+  final MyListStatus? myListStatus;
+
+  const MangaDetail({
+    required super.id,
+    required super.title,
+    super.imageUrl,
+    super.mean,
+    super.rank,
+    super.popularity,
+    super.numChapters,
+    super.numVolumes,
+    super.mediaType,
+    super.status,
+    super.genres,
+    super.synopsis,
+    super.numListUsers,
+    super.numScoringUsers,
+    this.authors = const [],
+    this.related = const [],
+    this.recommendations = const [],
+    this.synonyms = const [],
+    this.titleEn,
+    this.titleJa,
+    this.startDate,
+    this.endDate,
+    this.myListStatus,
+  });
+
+  factory MangaDetail.fromMal(Map<String, dynamic> json) {
+    final base = MangaSummary.fromMal(json);
+    String authorName(dynamic a) {
+      if (a is! Map<String, dynamic>) return '';
+      final node = a['node'];
+      if (node is! Map<String, dynamic>) return '';
+      final first = _str(node, 'first_name') ?? '';
+      final last = _str(node, 'last_name') ?? '';
+      return '$first $last'.trim();
+    }
+
+    List<MangaRelatedEntry> rel(dynamic l) {
+      if (l is! List) return [];
+      return [
+        for (final e in l)
+          if (e is Map<String, dynamic> && e['node'] is Map<String, dynamic>)
+            MangaRelatedEntry(
+              manga: MangaSummary.fromMal(e['node'] as Map<String, dynamic>),
+              relationLabel:
+                  _prettyRelation(e['relation_type_formatted'] as String?) ??
+                      _prettyRelation(e['relation_type'] as String?),
+            ),
+      ];
+    }
+    List<MangaSummary> recs(dynamic l) {
+      if (l is! List) return [];
+      return [
+        for (final e in l)
+          if (e is Map<String, dynamic> && e['node'] is Map<String, dynamic>)
+            MangaSummary.fromMal(e['node'] as Map<String, dynamic>),
+      ];
+    }
+
+    final alt = json['alternative_titles'];
+    final synonyms = <String>[];
+    String? titleEn, titleJa;
+    if (alt is Map<String, dynamic>) {
+      final s = alt['synonyms'];
+      if (s is List) {
+        synonyms.addAll([for (final x in s) if (x is String) x]);
+      }
+      titleEn = _str(alt, 'en');
+      titleJa = _str(alt, 'ja');
+    }
+    final mls = json['my_list_status'];
+    return MangaDetail(
+      id: base.id,
+      title: base.title,
+      imageUrl: base.imageUrl,
+      mean: base.mean,
+      rank: base.rank,
+      popularity: base.popularity,
+      numChapters: base.numChapters,
+      numVolumes: base.numVolumes,
+      mediaType: base.mediaType,
+      status: base.status,
+      genres: base.genres,
+      synopsis: base.synopsis,
+      numListUsers: base.numListUsers,
+      numScoringUsers: base.numScoringUsers,
+      authors: [
+        for (final a in (json['authors'] as List? ?? []))
+          authorName(a),
+      ].where((s) => s.isNotEmpty).toList(),
+      related: rel(json['related_manga']),
+      recommendations: recs(json['recommendations']),
+      synonyms: synonyms,
+      titleEn: titleEn,
+      titleJa: titleJa,
+      startDate: _str(json, 'start_date'),
+      endDate: _str(json, 'end_date'),
+      myListStatus: mls is Map<String, dynamic>
+          ? MyListStatus.fromMal(mls, ListKind.manga)
+          : null,
+    );
+  }
+}
+
+class MangaRelatedEntry {
+  final MangaSummary manga;
+  final String? relationLabel;
+
+  const MangaRelatedEntry({required this.manga, this.relationLabel});
+}
+
 /// Jikan-sourced review (MAL API v2 has no reviews endpoint).
 class Review {
   final String author;
@@ -702,11 +825,15 @@ class AnimeStatistics {
       }
     }
     return AnimeStatistics(
-      watching: (json['watching'] as num?)?.toInt() ?? 0,
+      watching: (json['watching'] as num?)?.toInt() ??
+          (json['reading'] as num?)?.toInt() ??
+          0,
       completed: (json['completed'] as num?)?.toInt() ?? 0,
       onHold: (json['on_hold'] as num?)?.toInt() ?? 0,
       dropped: (json['dropped'] as num?)?.toInt() ?? 0,
-      planToWatch: (json['plan_to_watch'] as num?)?.toInt() ?? 0,
+      planToWatch: (json['plan_to_watch'] as num?)?.toInt() ??
+          (json['plan_to_read'] as num?)?.toInt() ??
+          0,
       total: (json['total'] as num?)?.toInt() ?? 0,
       scorePercent: scores,
     );

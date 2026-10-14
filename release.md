@@ -1,4 +1,6 @@
 # MyAL v1.2.9
+- Fixed manga detail pages (they fetched the anime endpoint and showed the wrong title): dedicated manga detail with authors, chapters/volumes, manga characters/reviews/statistics
+- Reaching the final episode/chapter now flips the entry to Completed automatically; progress can no longer exceed the known total (also capped in the edit sheet)
 - Fixed pull-to-refresh on the detail page (it never triggered: NestedScrollView only overscrolls its inner tab lists, which the default indicator predicate ignores)
 - My List stepper now also refreshes the detail page cache, so the status pill is never stale when opening an entry
 

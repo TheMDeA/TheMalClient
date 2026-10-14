@@ -15,6 +15,10 @@ const _animeDetailFields =
     '$_animeFields,alternative_titles,source,average_episode_duration,rating,'
     'related_anime,recommendations,my_list_status';
 
+const _mangaDetailFields =
+    '$_mangaFields,alternative_titles,authors,related_manga,recommendations,'
+    'my_list_status';
+
 /// Browse/search/details for anime + manga.
 ///
 /// Source: MAL API v2 when authenticated with a real client ID,
@@ -125,6 +129,42 @@ class MediaRepository {
   }
 
   // ---------- manga ----------
+
+  Future<MangaDetail> mangaDetail(int id) async {
+    if (isDemo) {
+      final base = DemoData.topManga.firstWhere(
+        (m) => m.id == id,
+        orElse: () => DemoData.topManga.first,
+      );
+      return MangaDetail(
+        id: base.id,
+        title: base.title,
+        imageUrl: base.imageUrl,
+        mean: base.mean,
+        rank: base.rank,
+        popularity: base.popularity,
+        numChapters: base.numChapters,
+        numVolumes: base.numVolumes,
+        mediaType: base.mediaType,
+        status: base.status,
+        genres: base.genres,
+        synopsis: base.synopsis,
+        numListUsers: base.numListUsers,
+        authors: const ['Demo Author'],
+        related: [
+          for (final m in DemoData.topManga.where((m) => m.id != id).take(6))
+            MangaRelatedEntry(manga: m),
+        ],
+        recommendations:
+            DemoData.topManga.where((m) => m.id != id).take(6).toList(),
+      );
+    }
+    final res = await _client.dio.get(
+      '/manga/$id',
+      queryParameters: {'fields': _mangaDetailFields},
+    );
+    return MangaDetail.fromMal(res.data as Map<String, dynamic>);
+  }
 
   Future<List<MangaSummary>> topManga({int limit = 24}) async {
     if (isDemo) return DemoData.topManga;

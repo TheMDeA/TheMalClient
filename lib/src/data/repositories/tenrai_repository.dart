@@ -148,6 +148,38 @@ class TenraiRepository {
     }
   }
 
+  /// Aggregate statistics (`/manga/{id}/statistics`). Same shape as the
+  /// anime endpoint, with `reading`/`plan_to_read` keys (handled by
+  /// [AnimeStatistics.fromJikan]).
+  Future<AnimeStatistics?> mangaStatistics(int malId) async {
+    try {
+      final res = await _get('/manga/$malId/statistics');
+      final data = (res.data as Map<String, dynamic>)['data'];
+      if (data is! Map<String, dynamic>) return null;
+      return AnimeStatistics.fromJikan(data);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Manga reviews (`/manga/{id}/reviews`). Same shape as anime reviews.
+  Future<List<Review>> mangaReviews(int malId, {int limit = 10}) async {
+    try {
+      final res = await _get(
+        '/manga/$malId/reviews',
+        queryParameters: {'limit': limit, 'preliminary': false},
+      );
+      final data = (res.data as Map<String, dynamic>)['data'];
+      if (data is! List) return DemoData.reviews;
+      return [
+        for (final e in data)
+          if (e is Map<String, dynamic>) Review.fromJikan(e)
+      ];
+    } catch (_) {
+      return DemoData.reviews;
+    }
+  }
+
   /// Full character details (`/characters/{id}`).
   /// Returns null on network/API errors.
   Future<CharacterDetail?> characterDetail(int malId) async {
