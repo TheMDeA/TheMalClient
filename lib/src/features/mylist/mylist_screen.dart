@@ -469,6 +469,7 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
     final t = e.anime.numEpisodes;
     final max = (t != null && t > 0) ? t : 1 << 30;
     final next = (e.listStatus.progress + delta).clamp(0, max);
+    if (next == e.listStatus.progress) return; // At the boundary: nothing to do.
     setState(() => _steppingIds.add(id));
     final ok =
         await ref.read(myAnimeListProvider.notifier).stepProgress(id, next);
@@ -486,6 +487,7 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
     final t = e.manga.numChapters;
     final max = (t != null && t > 0) ? t : 1 << 30;
     final next = (e.listStatus.progress + delta).clamp(0, max);
+    if (next == e.listStatus.progress) return; // At the boundary: nothing to do.
     setState(() => _steppingIds.add(id));
     final ok =
         await ref.read(myMangaListProvider.notifier).stepProgress(id, next);
@@ -1080,6 +1082,18 @@ Future<void> showEditEntrySheet(
         // Episode/chapter pills: window around current value.
         final epStart = (newProgress - 4).clamp(0, 1 << 30);
         final epEnd = (total != null && total > 0) ? total : newProgress + 8;
+        // Progress can never exceed the known total; reaching it completes
+        // the entry.
+        final maxProgress = (total != null && total > 0) ? total : (1 << 30);
+        void setProgress(int n) {
+          newProgress = n.clamp(0, maxProgress);
+          if (total != null &&
+              total > 0 &&
+              newProgress >= total &&
+              newStatus != 'completed') {
+            newStatus = 'completed';
+          }
+        }
 
         return Padding(
           padding: EdgeInsets.only(
@@ -1150,17 +1164,13 @@ Future<void> showEditEntrySheet(
                       const Spacer(),
                       _StepButton(
                         icon: Icons.remove,
-                        onTap: () => setSheetState(
-                          () =>
-                              newProgress = (newProgress - 1).clamp(0, 1 << 30),
-                        ),
+                        onTap: () =>
+                            setSheetState(() => setProgress(newProgress - 1)),
                       ),
                       _StepButton(
                         icon: Icons.add,
-                        onTap: () => setSheetState(
-                          () =>
-                              newProgress = (newProgress + 1).clamp(0, 1 << 30),
-                        ),
+                        onTap: () =>
+                            setSheetState(() => setProgress(newProgress + 1)),
                       ),
                     ],
                   ),
@@ -1175,7 +1185,7 @@ Future<void> showEditEntrySheet(
                         return pill(
                           label: '$n',
                           selected: n == newProgress,
-                          onTap: () => setSheetState(() => newProgress = n),
+                          onTap: () => setSheetState(() => setProgress(n)),
                         );
                       },
                     ),
