@@ -876,7 +876,10 @@ class _CountdownChipState extends State<_CountdownChip> {
     if (aired != null) {
       next = aired + 1;
       final total = d.numEpisodes;
-      if (total != null && next > total) next = null; // finale already aired
+      // A total of 0 means "unknown" (still airing) — don't clamp to it.
+      if (total != null && total > 0 && next > total) {
+        next = null; // finale already aired
+      }
     }
 
     final airTime = _shortAirLabel(d); // "Fri 22:00", local time
@@ -936,7 +939,8 @@ class _CountdownChipState extends State<_CountdownChip> {
       final weeks = now.difference(startDate).inDays ~/ 7;
       var ep = weeks + 1;
       final total = d.numEpisodes;
-      if (total != null && ep > total) ep = total;
+      // A total of 0 means "unknown" (still airing) — don't clamp to it.
+      if (total != null && total > 0 && ep > total) ep = total;
       return ep > 0 ? ep : null;
     } catch (_) {
       return null;
